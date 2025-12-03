@@ -53,7 +53,7 @@ services:
   # ==================== Backend API ====================
   backend:
     build:
-      context: ./backend
+      context: .
       dockerfile: Dockerfile
     container_name: dish_backend
     restart: unless-stopped
