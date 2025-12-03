@@ -1,4 +1,3 @@
-# bot-worker/Dockerfile
 FROM python:3.11-slim
 
 RUN apt-get update && apt-get install -y \
@@ -12,13 +11,15 @@ WORKDIR /app
 COPY bot-worker/requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Копируем shared модули
-COPY shared ./shared
+# Копируем shared модули в корень /app
+COPY shared/ ./shared/
 
-# Копируем код bot-worker
-COPY bot-worker/ .
+# Копируем код bot-worker в корень /app (без создания подпапки)
+COPY bot-worker/*.py ./
+COPY bot-worker/handlers/ ./handlers/
+COPY bot-worker/services/ ./services/
 
-# Добавляем в PYTHONPATH
+# PYTHONPATH уже содержит /app, где лежат shared и все модули bot-worker
 ENV PYTHONPATH="/app:${PYTHONPATH}"
 
 # Создаем пользователя
