@@ -16,7 +16,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY ./shared ./shared
 
 # Копируем код bot-worker
-COPY ./bot-worker .
+COPY bot-worker .
 
 # Добавляем в PYTHONPATH
 ENV PYTHONPATH="/app:${PYTHONPATH}"
