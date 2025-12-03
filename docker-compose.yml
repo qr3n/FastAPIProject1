@@ -79,7 +79,7 @@ services:
     container_name: dish_backend
     restart: unless-stopped
     environment:
-      DATABASE_URL: postgresql://dish_user:${POSTGRES_PASSWORD:-dish_password}@postgres:5432/dish_db
+      DATABASE_URL: postgres://dish_user:${POSTGRES_PASSWORD:-dish_password}@postgres:5432/dish_db
       REDIS_URL: redis://redis:6379/0
       API_V1_PREFIX: /api/v1
       PROJECT_NAME: Dish Management API
@@ -131,7 +131,7 @@ services:
     container_name: dish_bot_worker
     restart: unless-stopped
     environment:
-      DATABASE_URL: postgresql://dish_user:${POSTGRES_PASSWORD:-dish_password}@postgres:5432/dish_db
+      DATABASE_URL: postgres://dish_user:${POSTGRES_PASSWORD:-dish_password}@postgres:5432/dish_db
       REDIS_URL: redis://redis:6379/0
       BACKEND_API_URL: http://backend:8000
       LOG_LEVEL: INFO
