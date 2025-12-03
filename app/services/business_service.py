@@ -1,17 +1,11 @@
-# app/services/business_service.py
 from typing import List
 from shared.models.business import Business
 from shared.models.user import User
 from app.schemas.business import BusinessCreateSchema, BusinessUpdateSchema
 from app.exceptions.business_exceptions import (
     BusinessNotFoundError,
-    BusinessAccessDeniedError,
-    InvalidTelegramTokenError
+    BusinessAccessDeniedError
 )
-from app.services.bot_manager_service import bot_manager
-import logging
-
-logger = logging.getLogger(__name__)
 
 
 class BusinessService:
@@ -31,19 +25,7 @@ class BusinessService:
 
         Returns:
             Created business instance
-
-        Raises:
-            InvalidTelegramTokenError: If bot token is invalid
         """
-        # 1. Проверяем валидность токена бота
-        bot_info = await bot_manager.verify_bot_token(business_data.telegram_bot_token)
-
-        if not bot_info:
-            raise InvalidTelegramTokenError("Invalid Telegram bot token")
-
-        logger.info(f"Bot verified: @{bot_info.get('username')}")
-
-        # 2. Создаем бизнес в БД
         business = await Business.create(
             owner=owner,
             name=business_data.name,
@@ -52,21 +34,11 @@ class BusinessService:
             telegram_bot_token=business_data.telegram_bot_token
         )
 
-        logger.info(f"Business created: {business.id} - {business.name}")
-
-        # 3. Регистрируем webhook для бота
-        webhook_registered = await bot_manager.register_bot_webhook(
-            bot_token=business_data.telegram_bot_token,
-            business_id=str(business.id)
-        )
-
-        if not webhook_registered:
-            logger.error(f"Failed to register webhook for business {business.id}")
-            # Можно либо откатить создание бизнеса, либо пометить как неактивный
-            await business.update_from_dict({"is_active": False}).save()
-            raise InvalidTelegramTokenError("Failed to register bot webhook")
-
-        logger.info(f"✅ Bot launched for business '{business.name}' (@{bot_info.get('username')})")
+        print(f"[BOT STUB] Creating Telegram bot for business '{business.name}'")
+        print(f"[BOT STUB] Business Type: {business.business_type.value}")
+        print(f"[BOT STUB] Bot Token: {business_data.telegram_bot_token[:10]}...")
+        print(f"[BOT STUB] Owner: {owner.username}")
+        print(f"[BOT STUB] Business ID: {business.id}")
 
         return business
 
@@ -141,49 +113,12 @@ class BusinessService:
         if business_data.business_type is not None:
             update_fields['business_type'] = business_data.business_type
 
-        # Обработка обновления токена бота
         if business_data.telegram_bot_token is not None:
-            # Проверяем новый токен
-            bot_info = await bot_manager.verify_bot_token(business_data.telegram_bot_token)
-
-            if not bot_info:
-                raise InvalidTelegramTokenError("Invalid Telegram bot token")
-
-            # Обновляем webhook (удаляем старый, регистрируем новый)
-            old_token = business.telegram_bot_token
-            new_token = business_data.telegram_bot_token
-
-            if old_token != new_token:
-                success = await bot_manager.update_bot_token(
-                    old_token=old_token,
-                    new_token=new_token,
-                    business_id=str(business.id)
-                )
-
-                if success:
-                    update_fields['telegram_bot_token'] = new_token
-                    logger.info(f"Bot token updated for business {business.id}")
-                else:
-                    raise InvalidTelegramTokenError("Failed to update bot webhook")
+            update_fields['telegram_bot_token'] = business_data.telegram_bot_token
+            print(f"[BOT STUB] Updating bot token for business '{business.name}'")
 
         if business_data.is_active is not None:
             update_fields['is_active'] = business_data.is_active
-
-            # Если бизнес деактивируется - удаляем webhook
-            if not business_data.is_active:
-                await bot_manager.unregister_bot_webhook(
-                    bot_token=business.telegram_bot_token,
-                    business_id=str(business.id)
-                )
-                logger.info(f"Bot deactivated for business {business.id}")
-
-            # Если активируется - регистрируем webhook
-            elif business_data.is_active and not business.is_active:
-                await bot_manager.register_bot_webhook(
-                    bot_token=business.telegram_bot_token,
-                    business_id=str(business.id)
-                )
-                logger.info(f"Bot activated for business {business.id}")
 
         await business.update_from_dict(update_fields).save()
         await business.refresh_from_db()
@@ -208,13 +143,7 @@ class BusinessService:
         if business.owner_id != user.id:
             raise BusinessAccessDeniedError()
 
-        # Удаляем webhook бота
-        await bot_manager.unregister_bot_webhook(
-            bot_token=business.telegram_bot_token,
-            business_id=str(business.id)
-        )
-
-        logger.info(f"Bot deleted for business '{business.name}'")
+        print(f"[BOT STUB] Deleting bot for business '{business.name}'")
 
         await business.delete()
 

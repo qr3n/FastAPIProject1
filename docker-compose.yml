@@ -10,8 +10,6 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-dish_password}
       POSTGRES_DB: dish_db
       PGDATA: /var/lib/postgresql/data/pgdata
-    ports:
-      - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
@@ -27,8 +25,6 @@ services:
     container_name: dish_redis
     restart: unless-stopped
     command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
-    ports:
-      - "6379:6379"
     volumes:
       - redis_data:/data
     healthcheck:
@@ -44,27 +40,27 @@ services:
     container_name: dish_mailhog
     restart: unless-stopped
     ports:
-      - "1025:1025"
       - "8025:8025"
     networks:
       - dish_network
 
   backend:
     build:
-      context: ./
+      context: ./backend
       dockerfile: Dockerfile
     container_name: dish_backend
     restart: unless-stopped
     environment:
-      DATABASE_URL: postgres://dish_user:${POSTGRES_PASSWORD:-dish_password}@postgres:5432/dish_db
+      DATABASE_URL: postgresql://dish_user:${POSTGRES_PASSWORD:-dish_password}@postgres:5432/dish_db
       REDIS_URL: redis://redis:6379/0
       API_V1_PREFIX: /api/v1
       PROJECT_NAME: Dish Management API
       DEBUG: "True"
-      CORS_ORIGINS: http://localhost:3000,http://frontend:3000
+      CORS_ORIGINS: "*"
       MAX_UPLOAD_SIZE: 5242880
       UPLOAD_DIR: /app/uploads
-      SECRET_KEY: "your-super-secret-key-change-this-in-production"
+      SECRET_KEY: ${SECRET_KEY:-your-super-secret-key-change-this}
+
       SESSION_COOKIE_NAME: session_id
       SESSION_MAX_AGE: 2592000
       SESSION_COOKIE_SECURE: False
@@ -82,13 +78,12 @@ services:
       SMTP_FROM_NAME: "Postavan"
       SMTP_USE_TLS: "False"
 
-      SMSC_LOGIN: Igul
-      SMSC_PASSWORD: HgyHFcvF9
+      SMSC_LOGIN: ${SMSC_LOGIN}
+      SMSC_PASSWORD: ${SMSC_PASSWORD}
 
+      # Bot settings
       BOT_WORKER_URL: "http://bot-worker:8080"
-      WEBHOOK_BASE_URL: "${WEBHOOK_BASE_URL:-http://localhost}"
-    ports:
-      - "8000:8000"
+      WEBHOOK_BASE_URL: ${WEBHOOK_BASE_URL:-http://localhost}
     volumes:
       - ./backend:/app
       - backend_uploads:/app/uploads
@@ -103,22 +98,19 @@ services:
 
   bot-worker:
     build:
-      context: .  # ✅ Контекст - корень проекта
-      dockerfile: ./bot-worker/Dockerfile
+      context: ./bot-worker
+      dockerfile: Dockerfile
     container_name: dish_bot_worker
     restart: unless-stopped
     environment:
-      DATABASE_URL: postgres://dish_user:${POSTGRES_PASSWORD:-dish_password}@postgres:5432/dish_db
+      DATABASE_URL: postgresql://dish_user:${POSTGRES_PASSWORD:-dish_password}@postgres:5432/dish_db
       REDIS_URL: redis://redis:6379/0
       BACKEND_API_URL: http://backend:8000
       LOG_LEVEL: INFO
       WORKER_ID: worker-1
       WORKER_PORT: 8080
-    ports:
-      - "8080:8080"
     volumes:
-      - ./bot-worker:/app/bot-worker  # ✅ Маунтим правильно
-      - ./shared:/app/shared  # ✅ Маунтим shared
+      - ./bot-worker:/app
       - backend_uploads:/app/uploads:ro
     depends_on:
       postgres:
@@ -130,11 +122,51 @@ services:
     networks:
       - dish_network
 
+  nginx:
+    image: nginx:alpine
+    container_name: dish_nginx
+    restart: unless-stopped
+    ports:
+      - "80:80"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - backend_uploads:/usr/share/nginx/html/uploads:ro
+      - nginx_logs:/var/log/nginx
+    depends_on:
+      - backend
+      - bot-worker
+    networks:
+      - dish_network
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost/nginx-health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: dish_pgadmin
+    restart: unless-stopped
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@dish.local
+      PGADMIN_DEFAULT_PASSWORD: admin
+      PGADMIN_CONFIG_SERVER_MODE: 'False'
+    ports:
+      - "5050:80"
+    volumes:
+      - pgadmin_data:/var/lib/pgadmin
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - dish_network
+
 volumes:
   postgres_data:
   backend_uploads:
   pgadmin_data:
   redis_data:
+  nginx_logs:
 
 networks:
   dish_network:
