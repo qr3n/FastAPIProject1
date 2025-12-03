@@ -100,8 +100,8 @@ services:
 
   bot-worker:
     build:
-      context: ./bot-worker
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: bot-worker/Dockerfile
     container_name: dish_bot_worker
     restart: unless-stopped
     environment:
