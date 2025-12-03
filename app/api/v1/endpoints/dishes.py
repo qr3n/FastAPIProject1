@@ -23,7 +23,7 @@ from app.exceptions.business_exceptions import (
 router = APIRouter(prefix="/dishes", tags=["dishes"])
 
 
-@router.get("/", response_model=List[DishResponseSchema])
+@router.get("", response_model=List[DishResponseSchema])  # ← изменено
 async def get_dishes(
         request: Request,
         business_id: Optional[str] = Query(None, description="Filter by business ID")
@@ -74,7 +74,7 @@ async def get_dish(dish_id: str, request: Request) -> DishResponseSchema:
 
 
 @router.post(
-    "/",
+    "",  # ← изменено
     response_model=DishResponseSchema,
     status_code=status.HTTP_201_CREATED
 )
