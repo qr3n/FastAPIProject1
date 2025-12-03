@@ -21,9 +21,9 @@ TORTOISE_ORM = {
     "apps": {
         "models": {
             "models": [
-                "app.models.user",
-                "app.models.business",
-                "app.models.dish",
+                "shared.models.user",
+                "shared.models.business",
+                "shared.models.dish",
                 "aerich.models"
             ],
             "default_connection": "default",
