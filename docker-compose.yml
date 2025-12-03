@@ -111,7 +111,7 @@ services:
 
       # Bot settings
       BOT_WORKER_URL: "http://bot-worker:8080"
-      WEBHOOK_BASE_URL: ${WEBHOOK_BASE_URL:-http://localhost}
+      WEBHOOK_BASE_URL: "https://primibox.com"
     volumes:
       - ./backend:/app
       - backend_uploads:/app/uploads
