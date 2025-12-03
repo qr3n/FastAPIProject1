@@ -48,6 +48,7 @@ class Settings(BaseSettings):
 
     BOT_WORKER_URL: str =  "http://bot-worker:8080"
     WEBHOOK_BASE_URL: str = "${WEBHOOK_BASE_URL:-http://localhost}"
+    REDIS_URL: str
 
     @property
     def cors_origins_list(self) -> List[str]:
