@@ -48,7 +48,7 @@ services:
     ports:
       - "8000:8000"
     build:
-      context: ./backend
+      context: .
       dockerfile: Dockerfile
     container_name: dish_backend
     restart: unless-stopped
