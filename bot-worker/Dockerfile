@@ -17,7 +17,6 @@ COPY shared/ ./shared/
 # Копируем код bot-worker в корень /app (без создания подпапки)
 COPY bot-worker/*.py ./
 COPY bot-worker/handlers/ ./handlers/
-COPY bot-worker/services/ ./services/
 
 # PYTHONPATH уже содержит /app, где лежат shared и все модули bot-worker
 ENV PYTHONPATH="/app:${PYTHONPATH}"
