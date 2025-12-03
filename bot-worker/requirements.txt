@@ -1,33 +1,35 @@
-# bot-worker/requirements.txt
+# bot-worker/requirements.txt (рекомендуемый вариант)
 
 # ==================== Core ====================
-# Async framework
 aiogram==3.15.0
-aiohttp==3.10.11  # ✅ Совместимая версия с aiogram 3.15.0
+aiohttp>=3.9.0,<3.11.0  # Диапазон совместимых версий
+aiofiles>=23.2.1,<24.2.0
 
 # ==================== Database ====================
-# ORM
 tortoise-orm==0.21.7
-asyncpg==0.30.0  # PostgreSQL async driver
+asyncpg==0.30.0
 
 # ==================== Cache & Queue ====================
 redis==5.2.1
-hiredis==3.0.0  # Faster Redis parser
+hiredis==3.0.0
 
 # ==================== HTTP Client ====================
-httpx==0.28.1  # Для вызовов Telegram API и backend
+httpx==0.28.1
 
 # ==================== Data Validation ====================
 pydantic==2.10.3
 pydantic-settings==2.7.0
 
 # ==================== Utils ====================
-python-dotenv==1.0.1  # Для .env файлов
+python-dotenv==1.0.1
 
 # ==================== Logging & Monitoring ====================
-python-json-logger==3.2.1  # Structured logging
-prometheus-client==0.21.0  # Metrics для мониторинга
+python-json-logger==3.2.1
+prometheus-client==0.21.0
 
 # ==================== Date & Time ====================
 python-dateutil==2.9.0.post0
 pytz==2024.2
+
+# ==================== Magic Filter (для aiogram) ====================
+magic-filter==1.0.12
