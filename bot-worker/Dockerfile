@@ -9,14 +9,14 @@ RUN apt-get update && apt-get install -y \
 WORKDIR /app
 
 # Копируем requirements и устанавливаем зависимости
-COPY bot-worker/requirements.txt .
+COPY ./bot-worker/requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Копируем shared модули
-COPY shared ./shared
+COPY ./shared ./shared
 
 # Копируем код bot-worker
-COPY bot-worker .
+COPY ./bot-worker .
 
 # Добавляем в PYTHONPATH
 ENV PYTHONPATH="/app:${PYTHONPATH}"
