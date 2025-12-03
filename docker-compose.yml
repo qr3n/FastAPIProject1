@@ -138,7 +138,7 @@ services:
       WORKER_ID: worker-1
       WORKER_PORT: 8080
     volumes:
-      - ./bot-worker:/app
+#      - ./bot-worker:/app
       - backend_uploads:/app/uploads:ro
     depends_on:
       postgres:
