@@ -1,7 +1,7 @@
 # app/schemas/businesses.py
 from pydantic import BaseModel, Field
 from typing import Optional
-from app.models.business import BusinessType
+from shared.models.business import BusinessType
 
 
 class BusinessCreateSchema(BaseModel):

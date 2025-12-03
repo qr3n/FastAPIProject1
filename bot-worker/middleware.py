@@ -1,8 +1,8 @@
 # bot-worker/middleware.py
 from typing import Callable, Dict, Any, Awaitable
 from aiogram import BaseMiddleware
-from aiogram.types import TelegramObject, Update, Message, CallbackQuery
-from app.models.business import Business
+from aiogram.types import TelegramObject, Message, CallbackQuery
+from shared.models.business import Business
 import logging
 
 logger = logging.getLogger(__name__)

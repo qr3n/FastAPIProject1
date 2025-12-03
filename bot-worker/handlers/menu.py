@@ -2,7 +2,7 @@
 from aiogram import Router, F
 from aiogram.types import Message, CallbackQuery, InlineKeyboardMarkup, InlineKeyboardButton
 from aiogram.filters import Command
-from app.models.dish import Dish
+from shared.models.dish import Dish
 import logging
 
 logger = logging.getLogger(__name__)

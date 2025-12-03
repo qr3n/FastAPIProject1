@@ -9,7 +9,7 @@ from app.schemas.dish import (
 )
 from app.services.dish_service import DishService
 from app.api.v1.dependencies.auth import get_current_user
-from app.models.user import User
+from shared.models.user import User
 from app.exceptions.dish_exceptions import (
     DishNotFoundError,
     InvalidImageError,

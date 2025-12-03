@@ -11,6 +11,7 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 COPY ./app /code/app
+COPY ./shared /code/shared
 COPY . .
 
 RUN mkdir -p /code/uploads

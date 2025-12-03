@@ -1,7 +1,7 @@
 # app/services/business_service.py
 from typing import List
-from app.models.business import Business
-from app.models.user import User
+from shared.models.business import Business
+from shared.models.user import User
 from app.schemas.business import BusinessCreateSchema, BusinessUpdateSchema
 from app.exceptions.business_exceptions import (
     BusinessNotFoundError,

@@ -9,7 +9,7 @@ from app.schemas.business import (
 )
 from app.services.business_service import BusinessService
 from app.api.v1.dependencies.auth import get_current_user
-from app.models.user import User
+from shared.models.user import User
 from app.exceptions.business_exceptions import (
     BusinessNotFoundError,
     BusinessAccessDeniedError

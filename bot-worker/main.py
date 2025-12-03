@@ -34,7 +34,7 @@ class BotWorker:
         """Initialize database connection."""
         await Tortoise.init(
             db_url=DATABASE_URL,
-            modules={"models": ["app.models.business", "app.models.dish", "app.models.user"]}
+            modules={"models": ["shared.models.business", "shared.models.dish", "shared.models.user"]}
         )
         await Tortoise.generate_schemas()
         logger.info("Database initialized")

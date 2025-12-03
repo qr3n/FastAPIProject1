@@ -7,9 +7,9 @@ from typing import List, Optional
 from PIL import Image
 import io
 
-from app.models.dish import Dish
-from app.models.business import Business
-from app.models.user import User
+from shared.models.dish import Dish
+from shared.models.business import Business
+from shared.models.user import User
 from app.schemas.dish import DishCreateSchema, DishUpdateSchema
 from app.exceptions.dish_exceptions import (
     DishNotFoundError,

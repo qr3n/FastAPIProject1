@@ -1,9 +1,9 @@
 # app/services/auth_service.py
-from datetime import datetime, timezone, timedelta
+from datetime import timedelta
 from typing import Optional
 from fastapi import Request
 
-from app.models.user import User, Session, VerificationCode
+from shared.models.user import User, Session, VerificationCode
 from app.schemas.user import SendCodeSchema, VerifyCodeSchema
 from app.core.security import (
     generate_session_id,
@@ -12,9 +12,7 @@ from app.core.security import (
     get_current_utc_time,
     generate_verification_code,
     hash_verification_code,
-    get_verification_code_expiry,
-    is_valid_email,
-    normalize_phone
+    get_verification_code_expiry
 )
 from app.services.notification_service import NotificationService
 from app.exceptions.auth_exceptions import (
@@ -27,7 +25,6 @@ from app.exceptions.auth_exceptions import (
     CodeAlreadyUsedError,
     RateLimitError
 )
-from app.core.config import settings
 
 
 class AuthService:

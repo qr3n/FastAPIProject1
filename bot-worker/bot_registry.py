@@ -7,7 +7,7 @@ from aiogram.client.default import DefaultBotProperties
 from aiogram.enums import ParseMode
 import redis.asyncio as redis
 
-from app.models.business import Business
+from shared.models.business import Business
 from handlers import register_handlers
 from middleware import BusinessContextMiddleware
 

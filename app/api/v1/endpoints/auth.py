@@ -10,12 +10,9 @@ from app.schemas.user import (
 )
 from app.services.auth_service import AuthService
 from app.api.v1.dependencies.auth import get_current_user, get_session_token
-from app.models.user import User
+from shared.models.user import User
 from app.core.config import settings
 from app.exceptions.auth_exceptions import (
-    InvalidSessionError,
-    SessionExpiredError,
-    UserNotActiveError,
     InvalidVerificationCodeError,
     VerificationCodeExpiredError,
     TooManyAttemptsError,
@@ -185,7 +182,7 @@ async def delete_session(
     Raises:
         HTTPException: 404 if session not found or doesn't belong to user
     """
-    from app.models.user import Session
+    from shared.models.user import Session
 
     session = await Session.get_or_none(id=sid, user=current_user)
     if not session:
