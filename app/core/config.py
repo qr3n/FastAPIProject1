@@ -46,6 +46,9 @@ class Settings(BaseSettings):
     SMSC_LOGIN: str = "Igul"
     SMSC_PASSWORD: str = "HgyHFcvF9"
 
+    BOT_WORKER_URL: str =  "http://bot-worker:8080"
+    WEBHOOK_BASE_URL: str = "${WEBHOOK_BASE_URL:-http://localhost}"
+
     @property
     def cors_origins_list(self) -> List[str]:
         """Convert CORS_ORIGINS string to list."""
