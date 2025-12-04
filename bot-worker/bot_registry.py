@@ -134,7 +134,8 @@ class BotRegistry:
         # Check Redis for last used bot
         cached_token = await self.redis.get(f"user_bot:{user_id}")
         if cached_token:
-            return await self.get_bot(cached_token.decode())
+            # Redis уже возвращает строку (decode_responses=True)
+            return await self.get_bot(cached_token)
 
         # Option 3: Default to first available bot (for single-bot setup)
         if self.bots:
@@ -146,7 +147,8 @@ class BotRegistry:
         """Get bot instance by business ID."""
         token = await self.redis.get(f"business_bot:{business_id}")
         if token:
-            return await self.get_bot(token.decode())
+            # Redis уже возвращает строку (decode_responses=True), не нужен .decode()
+            return await self.get_bot(token)
 
         # Fallback: search in loaded bots
         for bot_data in self.bots.values():
