@@ -91,7 +91,12 @@ class BotWorker:
             # Добавляем бизнес-контекст в middleware
             request['business_id'] = business_id
 
+            logger.info(f'===========================')
+            logger.info(f'Created new bot {bot_token}')
+            logger.info(f'===========================')
+
             return await handler.handle(request)
+
 
         except Exception as e:
             logger.error(f"Error processing webhook for bot {bot_token[:10]}: {e}")
