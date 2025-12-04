@@ -1,20 +1,26 @@
 # bot-worker/handlers/__init__.py
-from aiogram import Router
+from aiogram import Router, F
+from aiogram.types import Message
+from aiogram.filters import Command
+
 from .menu import register_menu_handlers
-from .ai_assistant import register_ai_handlers
 
 
 def register_handlers(dp, business_id: str):
-    """Register all handlers for a bot instance."""
-    router = Router()
+    """Register all handlers for a bot."""
 
-    register_menu_handlers(router, business_id)
-    register_ai_handlers(router, business_id)
+    # Главный роутер
+    main_router = Router()
 
-    dp.include_router(router)
+    @main_router.message(Command("start"))
+    async def cmd_start(message: Message):
+        await message.answer(
+            "👋 Добро пожаловать!\n\n"
+            "🍽 /menu - Посмотреть меню\n"
+            "📋 /orders - Мои заказы\n"
+            "ℹ️ /help - Помощь"
+        )
 
+    register_menu_handlers(main_router, business_id)
 
-def register_callback_handlers(app):
-    """Register HTTP callback handlers for AI assistant responses."""
-    from .callback import ai_callback_handler
-    app.router.add_post('/ai-callback', ai_callback_handler)
+    dp.include_router(main_router)
