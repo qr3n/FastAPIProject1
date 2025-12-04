@@ -8,7 +8,7 @@ from aiogram.enums import ParseMode
 from shared.models.business import Business
 from middleware import BusinessContextMiddleware
 from handlers.menu import register_menu_handlers
-from handlers.ai_assistant import register_ai_assistant_handlers
+from handlers.ai_assistant import register_ai_handlers
 import redis.asyncio as redis
 import logging
 import json
@@ -65,7 +65,7 @@ class BotRegistry:
             router = Router()
 
             register_menu_handlers(router, str(business.id))
-            register_ai_assistant_handlers(router, str(business.id))
+            register_ai_handlers(router, str(business.id))
 
             dp.include_router(router)
 

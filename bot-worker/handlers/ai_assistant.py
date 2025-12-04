@@ -64,7 +64,7 @@ def register_ai_handlers(router: Router, business_id: str):
                     }
                 }
 
-                async with session.postZ(AI_ASSISTANT_URL, json=payload) as resp:
+                async with session.post(AI_ASSISTANT_URL, json=payload) as resp:
                     if resp.status == 200:
                         logger.info(f"Message sent to AI assistant for user {user.telegram_id}")
                     else:
