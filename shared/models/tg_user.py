@@ -30,7 +30,7 @@ class TGUser(Model):
     is_blocked = fields.BooleanField(default=False)
 
     class Meta:
-        table = "users"
+        table = "tg_users"  # Changed from "users" to "tg_users"
 
     def __str__(self):
         return f"User {self.telegram_id} ({self.first_name})"

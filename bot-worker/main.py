@@ -38,10 +38,10 @@ class BotWorker:
                 "shared.models.business",
                 "shared.models.dish",
                 "shared.models.user",
-                "shared.models.tg_user"  # Добавляем новую модель
+                "shared.models.tg_user"
             ]}
         )
-        await Tortoise.generate_schemas()
+        await Tortoise.generate_schemas(safe=True)
         logger.info("Database initialized")
 
     async def init_redis(self):
