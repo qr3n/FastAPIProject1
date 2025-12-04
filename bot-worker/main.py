@@ -10,7 +10,7 @@ from tortoise import Tortoise
 import os
 
 from bot_registry import BotRegistry
-from handlers import register_handlers
+from handlers import register_handlers, register_callback_handlers
 from middleware import BusinessContextMiddleware
 
 logging.basicConfig(level=logging.INFO)
@@ -34,7 +34,12 @@ class BotWorker:
         """Initialize database connection."""
         await Tortoise.init(
             db_url=DATABASE_URL,
-            modules={"models": ["shared.models.business", "shared.models.dish", "shared.models.user"]}
+            modules={"models": [
+                "shared.models.business",
+                "shared.models.dish",
+                "shared.models.user",
+                "shared.models.tg_user"  # Добавляем новую модель
+            ]}
         )
         await Tortoise.generate_schemas()
         logger.info("Database initialized")
@@ -49,6 +54,10 @@ class BotWorker:
         """Setup bot registry with caching."""
         self.bot_registry = BotRegistry(self.redis_client)
         await self.bot_registry.load_active_bots()
+
+        # Делаем реестр доступным через app context
+        self.app['bot_registry'] = self.bot_registry
+
         logger.info(f"Bot registry initialized on {WORKER_ID}")
 
     async def webhook_handler(self, request: web.Request) -> web.Response:
@@ -106,6 +115,9 @@ class BotWorker:
         self.app.router.add_post('/webhook/{bot_token}', self.webhook_handler)
         self.app.router.add_get('/health', self.health_check)
         self.app.router.add_post('/admin/reload', self.reload_bots)
+
+        # Регистрируем callback handlers для AI
+        register_callback_handlers(self.app)
 
     async def on_startup(self, app: web.Application):
         """Application startup handler."""
