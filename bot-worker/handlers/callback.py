@@ -57,7 +57,7 @@ async def ai_callback_handler(request: web.Request) -> web.Response:
         # Отправляем сообщение пользователю
         await bot.send_message(
             chat_id=user.telegram_id,
-            text=message_text,
+            text=message_text['result_text'],
             parse_mode="HTML"
         )
 
