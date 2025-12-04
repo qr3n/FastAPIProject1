@@ -1,4 +1,3 @@
-# bot-worker/main.py
 import asyncio
 import logging
 from aiohttp import web
@@ -29,6 +28,7 @@ class BotWorker:
         self.app = web.Application()
         self.bot_registry = None
         self.redis_client = None
+        self.pubsub_task = None  # Задача для прослушивания Redis pub/sub
 
     async def init_db(self):
         """Initialize database connection."""
@@ -60,6 +60,33 @@ class BotWorker:
 
         logger.info(f"Bot registry initialized on {WORKER_ID}")
 
+    async def listen_for_reload_events(self):
+        """
+        Слушаем Redis pub/sub канал для команд перезагрузки ботов.
+        """
+        pubsub = self.redis_client.pubsub()
+        await pubsub.subscribe("bot_worker:reload")
+
+        logger.info(f"🎧 {WORKER_ID} listening for reload events...")
+
+        try:
+            async for message in pubsub.listen():
+                if message['type'] == 'message':
+                    logger.info(f"📨 Received reload command: {message['data']}")
+
+                    # Перезагружаем реестр ботов
+                    await self.bot_registry.reload_all_bots()
+
+                    bots_count = await self.bot_registry.get_bots_count()
+                    logger.info(f"🔄 Reloaded bot registry. Active bots: {bots_count}")
+
+        except asyncio.CancelledError:
+            logger.info(f"🛑 Pub/Sub listener stopped for {WORKER_ID}")
+            await pubsub.unsubscribe("bot_worker:reload")
+            await pubsub.close()
+        except Exception as e:
+            logger.error(f"❌ Error in pub/sub listener: {e}")
+
     async def webhook_handler(self, request: web.Request) -> web.Response:
         """
         Universal webhook handler for all bots.
@@ -74,8 +101,18 @@ class BotWorker:
         bot_data = await self.bot_registry.get_bot(bot_token)
 
         if not bot_data:
-            logger.warning(f"Unknown bot token: {bot_token[:10]}...")
-            return web.Response(status=404, text="Bot not found")
+            logger.warning(f"⚠️ Unknown bot token: {bot_token[:10]}...")
+
+            # Попытка перезагрузить реестр (возможно бот только что добавлен)
+            logger.info("🔄 Attempting to reload bot registry...")
+            await self.bot_registry.reload_all_bots()
+
+            # Повторная попытка получить бота
+            bot_data = await self.bot_registry.get_bot(bot_token)
+
+            if not bot_data:
+                logger.error(f"❌ Bot still not found after reload: {bot_token[:10]}...")
+                return web.Response(status=404, text="Bot not found")
 
         bot = bot_data['bot']
         dp = bot_data['dispatcher']
@@ -92,14 +129,13 @@ class BotWorker:
             request['business_id'] = business_id
 
             logger.info(f'===========================')
-            logger.info(f'Created new bot {bot_token}')
+            logger.info(f'✅ Processing webhook for bot {bot_token[:10]}... (business: {business_id})')
             logger.info(f'===========================')
 
             return await handler.handle(request)
 
-
         except Exception as e:
-            logger.error(f"Error processing webhook for bot {bot_token[:10]}: {e}")
+            logger.error(f"❌ Error processing webhook for bot {bot_token[:10]}: {e}", exc_info=True)
             return web.Response(status=500, text="Internal error")
 
     async def health_check(self, request: web.Request) -> web.Response:
@@ -113,7 +149,11 @@ class BotWorker:
     async def reload_bots(self, request: web.Request) -> web.Response:
         """Reload bots from database (admin endpoint)."""
         await self.bot_registry.reload_all_bots()
-        return web.json_response({"status": "reloaded"})
+        bots_count = await self.bot_registry.get_bots_count()
+        return web.json_response({
+            "status": "reloaded",
+            "bots_count": bots_count
+        })
 
     def setup_routes(self):
         """Setup application routes."""
@@ -129,14 +169,26 @@ class BotWorker:
         await self.init_db()
         await self.init_redis()
         await self.setup_bot_registry()
-        logger.info(f"Worker {WORKER_ID} started successfully")
+
+        # Запускаем слушатель Redis pub/sub в фоне
+        self.pubsub_task = asyncio.create_task(self.listen_for_reload_events())
+
+        logger.info(f"✅ Worker {WORKER_ID} started successfully")
 
     async def on_shutdown(self, app: web.Application):
         """Application shutdown handler."""
+        # Останавливаем слушатель pub/sub
+        if self.pubsub_task:
+            self.pubsub_task.cancel()
+            try:
+                await self.pubsub_task
+            except asyncio.CancelledError:
+                pass
+
         await self.bot_registry.close_all()
         await self.redis_client.close()
         await Tortoise.close_connections()
-        logger.info(f"Worker {WORKER_ID} shutdown complete")
+        logger.info(f"🛑 Worker {WORKER_ID} shutdown complete")
 
     def run(self, host='0.0.0.0', port=8080):
         """Run the worker."""
