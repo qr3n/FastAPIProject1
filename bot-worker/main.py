@@ -10,7 +10,7 @@ from tortoise import Tortoise
 import os
 
 from bot_registry import BotRegistry
-from handlers import register_handlers, register_callback_handlers
+from handlers import register_handlers
 from middleware import BusinessContextMiddleware
 
 logging.basicConfig(level=logging.INFO)
@@ -34,14 +34,9 @@ class BotWorker:
         """Initialize database connection."""
         await Tortoise.init(
             db_url=DATABASE_URL,
-            modules={"models": [
-                "shared.models.business",
-                "shared.models.dish",
-                "shared.models.user",
-                "shared.models.tg_user"
-            ]}
+            modules={"models": ["shared.models.business", "shared.models.dish", "shared.models.user"]}
         )
-        await Tortoise.generate_schemas(safe=True)
+        await Tortoise.generate_schemas()
         logger.info("Database initialized")
 
     async def init_redis(self):
@@ -54,10 +49,6 @@ class BotWorker:
         """Setup bot registry with caching."""
         self.bot_registry = BotRegistry(self.redis_client)
         await self.bot_registry.load_active_bots()
-
-        # Делаем реестр доступным через app context
-        self.app['bot_registry'] = self.bot_registry
-
         logger.info(f"Bot registry initialized on {WORKER_ID}")
 
     async def webhook_handler(self, request: web.Request) -> web.Response:
@@ -91,12 +82,7 @@ class BotWorker:
             # Добавляем бизнес-контекст в middleware
             request['business_id'] = business_id
 
-            logger.info(f'===========================')
-            logger.info(f'Created new bot {bot_token}')
-            logger.info(f'===========================')
-
             return await handler.handle(request)
-
 
         except Exception as e:
             logger.error(f"Error processing webhook for bot {bot_token[:10]}: {e}")
@@ -120,9 +106,6 @@ class BotWorker:
         self.app.router.add_post('/webhook/{bot_token}', self.webhook_handler)
         self.app.router.add_get('/health', self.health_check)
         self.app.router.add_post('/admin/reload', self.reload_bots)
-
-        # Регистрируем callback handlers для AI
-        register_callback_handlers(self.app)
 
     async def on_startup(self, app: web.Application):
         """Application startup handler."""
