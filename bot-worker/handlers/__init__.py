@@ -18,3 +18,4 @@ def register_callback_handlers(app):
     """Register HTTP callback handlers for AI assistant responses."""
     from .callback import ai_callback_handler
     app.router.add_post('/ai-callback', ai_callback_handler)
+    app.router.add_post('/ai-callback/', ai_callback_handler)
