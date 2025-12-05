@@ -173,6 +173,36 @@ class BotManagerService:
         """Get current bot information."""
         return await self.verify_bot_token(bot_token)
 
+    async def get_webhook_info(self, bot_token: str) -> Optional[dict]:
+        """
+        Get current webhook information for debugging.
+
+        Returns:
+            Webhook info or None
+        """
+        try:
+            async with httpx.AsyncClient(timeout=5.0) as client:
+                response = await client.get(
+                    f"https://api.telegram.org/bot{bot_token}/getWebhookInfo"
+                )
+
+                if response.status_code == 200:
+                    result = response.json()
+                    if result.get("ok"):
+                        webhook_info = result.get("result", {})
+                        logger.info(
+                            f"Webhook info for {bot_token[:10]}...: "
+                            f"url={webhook_info.get('url')}, "
+                            f"pending_updates={webhook_info.get('pending_update_count')}, "
+                            f"last_error={webhook_info.get('last_error_message')}"
+                        )
+                        return webhook_info
+
+                return None
+
+        except Exception as e:
+            logger.error(f"Error getting webhook info: {e}")
+            return None
 
 # Singleton instance
 bot_manager = BotManagerService()

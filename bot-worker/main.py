@@ -118,24 +118,56 @@ class BotWorker:
         dp = bot_data['dispatcher']
         business_id = bot_data['business_id']
 
+        # Получаем тело запроса для логирования
+        try:
+            body = await request.json()
+            update_type = "unknown"
+            user_id = None
+
+            if "message" in body:
+                update_type = "message"
+                user_id = body["message"].get("from", {}).get("id")
+            elif "callback_query" in body:
+                update_type = "callback_query"
+                user_id = body["callback_query"].get("from", {}).get("id")
+
+            logger.info(
+                f"📨 Webhook received: type={update_type}, "
+                f"user={user_id}, business={business_id}"
+            )
+
+        except Exception as e:
+            logger.error(f"Error parsing request body: {e}")
+
         # Обрабатываем апдейт
         try:
+            # Проверяем, что у диспетчера есть зарегистрированные хендлеры
+            handlers_count = len(dp.message.handlers) if hasattr(dp, 'message') else 0
+            logger.info(f"🎯 Dispatcher has {handlers_count} message handlers")
+
             handler = SimpleRequestHandler(
                 dispatcher=dp,
                 bot=bot,
             )
 
-            # Добавляем бизнес-контекст в middleware
+            # Добавляем бизнес-контекст в request (для middleware)
             request['business_id'] = business_id
 
-            logger.info(f'===========================')
-            logger.info(f'✅ Processing webhook for bot {bot_token[:10]}... (business: {business_id})')
-            logger.info(f'===========================')
+            logger.info(
+                f"✅ Processing webhook for bot {bot_token[:10]}... "
+                f"(business: {business_id})"
+            )
 
-            return await handler.handle(request)
+            response = await handler.handle(request)
+
+            logger.info(f"✅ Webhook processed successfully")
+            return response
 
         except Exception as e:
-            logger.error(f"❌ Error processing webhook for bot {bot_token[:10]}: {e}", exc_info=True)
+            logger.error(
+                f"❌ Error processing webhook for bot {bot_token[:10]}: {e}",
+                exc_info=True
+            )
             return web.Response(status=500, text="Internal error")
 
     async def health_check(self, request: web.Request) -> web.Response:
