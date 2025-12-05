@@ -5,8 +5,8 @@ from typing import Optional
 from app.core.config import settings
 from app.core.redis_ import get_redis
 
+logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
-
 
 class BotManagerService:
     """Service for managing bot lifecycle through bot-worker."""

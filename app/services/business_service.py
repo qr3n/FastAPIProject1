@@ -10,6 +10,11 @@ from app.exceptions.business_exceptions import (
 from app.services.bot_manager_service import bot_manager
 import logging
 
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
+
 logger = logging.getLogger(__name__)
 
 
