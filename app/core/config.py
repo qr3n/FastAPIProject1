@@ -47,7 +47,7 @@ class Settings(BaseSettings):
     SMSC_PASSWORD: str = "HgyHFcvF9"
 
     BOT_WORKER_URL: str =  "http://bot-worker:8080"
-    WEBHOOK_BASE_URL: str = "${WEBHOOK_BASE_URL:-https://aidronik.com}"
+    WEBHOOK_BASE_URL: str = "${WEBHOOK_BASE_URL:-http://localhost}"
     REDIS_URL: str
 
     @property
