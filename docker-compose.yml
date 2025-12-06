@@ -115,7 +115,7 @@ services:
 
       # Bot settings
       BOT_WORKER_URL: "http://bot-worker:8080"
-      WEBHOOK_BASE_URL: "https://primibox.com"
+      WEBHOOK_BASE_URL: "https://aidronik.com"
     volumes:
       - ./backend:/app
       - backend_uploads:/app/uploads
