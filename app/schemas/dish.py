@@ -1,7 +1,7 @@
 # app/schemas/dish.py
 from pydantic import BaseModel, Field, field_validator
 from decimal import Decimal
-from typing import Optional
+from typing import Optional, List
 
 
 class DishCreateSchema(BaseModel):
@@ -13,6 +13,13 @@ class DishCreateSchema(BaseModel):
     price: str = Field(..., pattern=r'^\d+(\.\d{1,2})?$')
     image: str = Field(..., description="Base64 encoded image")
     is_available: bool = True
+
+    # Новые поля
+    tags: List[str] = Field(default_factory=list, description="Tags for categorization")
+    category: Optional[str] = Field(None, max_length=50, description="Dish category")
+    cuisine: Optional[str] = Field(None, max_length=50, description="Cuisine type")
+    ingredients: List[str] = Field(default_factory=list, description="Main ingredients")
+    allergens: List[str] = Field(default_factory=list, description="Known allergens")
 
     @field_validator('price')
     @classmethod
@@ -33,6 +40,20 @@ class DishCreateSchema(BaseModel):
             raise ValueError('Image must be a valid base64 data URL')
         return value
 
+    @field_validator('tags', 'ingredients', 'allergens')
+    @classmethod
+    def validate_list_items(cls, value: List[str]) -> List[str]:
+        """Validate and normalize list items."""
+        return [item.strip().lower() for item in value if item.strip()]
+
+    @field_validator('category', 'cuisine')
+    @classmethod
+    def validate_text_fields(cls, value: Optional[str]) -> Optional[str]:
+        """Normalize text fields."""
+        if value:
+            return value.strip().lower()
+        return value
+
 
 class DishUpdateSchema(BaseModel):
     """Schema for updating a dish."""
@@ -42,6 +63,13 @@ class DishUpdateSchema(BaseModel):
     price: Optional[str] = Field(None, pattern=r'^\d+(\.\d{1,2})?$')
     image: Optional[str] = Field(None, description="Base64 encoded image")
     is_available: Optional[bool] = None
+
+    # Новые поля
+    tags: Optional[List[str]] = Field(None, description="Tags for categorization")
+    category: Optional[str] = Field(None, max_length=50, description="Dish category")
+    cuisine: Optional[str] = Field(None, max_length=50, description="Cuisine type")
+    ingredients: Optional[List[str]] = Field(None, description="Main ingredients")
+    allergens: Optional[List[str]] = Field(None, description="Known allergens")
 
     @field_validator('price')
     @classmethod
@@ -66,6 +94,22 @@ class DishUpdateSchema(BaseModel):
             raise ValueError('Image must be a valid base64 data URL')
         return value
 
+    @field_validator('tags', 'ingredients', 'allergens')
+    @classmethod
+    def validate_list_items(cls, value: Optional[List[str]]) -> Optional[List[str]]:
+        """Validate and normalize list items."""
+        if value is None:
+            return value
+        return [item.strip().lower() for item in value if item.strip()]
+
+    @field_validator('category', 'cuisine')
+    @classmethod
+    def validate_text_fields(cls, value: Optional[str]) -> Optional[str]:
+        """Normalize text fields."""
+        if value:
+            return value.strip().lower()
+        return value
+
 
 class DishResponseSchema(BaseModel):
     """Schema for dish responses."""
@@ -77,6 +121,11 @@ class DishResponseSchema(BaseModel):
     price: str
     image: str
     is_available: bool
+    tags: List[str]
+    category: Optional[str]
+    cuisine: Optional[str]
+    ingredients: List[str]
+    allergens: List[str]
     created_at: str
     updated_at: str
 
@@ -102,6 +151,11 @@ class DishResponseSchema(BaseModel):
             price=str(dish.price),
             image=f"{base_url}/uploads/{dish.image_path}",
             is_available=dish.is_available,
+            tags=dish.tags or [],
+            category=dish.category,
+            cuisine=dish.cuisine,
+            ingredients=dish.ingredients or [],
+            allergens=dish.allergens or [],
             created_at=dish.created_at.isoformat(),
             updated_at=dish.updated_at.isoformat()
         )

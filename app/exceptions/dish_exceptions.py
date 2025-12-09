@@ -23,3 +23,11 @@ class ImageSaveError(DishException):
 
     def __init__(self, message: str = "Failed to save image"):
         super().__init__(message)
+
+
+class CategoryNotFoundError(Exception):
+    """Raised when dish category is not found."""
+
+    def __init__(self, category_id: str):
+        self.category_id = category_id
+        super().__init__(f"Category with id {category_id} not found or inactive")

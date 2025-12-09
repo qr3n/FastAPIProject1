@@ -23,7 +23,7 @@ from app.exceptions.business_exceptions import (
 router = APIRouter(prefix="/dishes", tags=["dishes"])
 
 
-@router.get("", response_model=List[DishResponseSchema])  # ← изменено
+@router.get("", response_model=List[DishResponseSchema])
 async def get_dishes(
         request: Request,
         business_id: Optional[str] = Query(None, description="Filter by business ID")
@@ -39,6 +39,50 @@ async def get_dishes(
         List of dishes
     """
     dishes = await DishService.get_all_dishes(business_id)
+    base_url = str(request.base_url).rstrip('/')
+
+    return [
+        DishResponseSchema.from_orm_dish(dish, base_url)
+        for dish in dishes
+    ]
+
+
+@router.get("/search", response_model=List[DishResponseSchema])
+async def search_dishes(
+        request: Request,
+        keywords: List[str] = Query(..., description="Keywords to search for"),
+        business_id: Optional[str] = Query(None, description="Filter by business ID"),
+        category: Optional[str] = Query(None, description="Filter by category"),
+        cuisine: Optional[str] = Query(None, description="Filter by cuisine"),
+        is_available: Optional[bool] = Query(None, description="Filter by availability")
+) -> List[DishResponseSchema]:
+    """
+    Search dishes by keywords and filters.
+
+    Searches in: title, description, tags, category, cuisine, ingredients, allergens.
+
+    Args:
+        request: FastAPI request object
+        keywords: List of keywords to search for (e.g., ['pasta', 'tomato'])
+        business_id: Optional business UUID to filter by
+        category: Optional category to filter by (e.g., 'appetizer', 'main', 'dessert')
+        cuisine: Optional cuisine to filter by (e.g., 'italian', 'asian')
+        is_available: Optional availability filter
+
+    Returns:
+        List of matching dishes
+
+    Example:
+        GET /dishes/search?keywords=pasta&keywords=cheese&category=main&cuisine=italian
+    """
+    dishes = await DishService.search_dishes(
+        keywords=keywords,
+        business_id=business_id,
+        category=category,
+        cuisine=cuisine,
+        is_available=is_available
+    )
+
     base_url = str(request.base_url).rstrip('/')
 
     return [
@@ -74,7 +118,7 @@ async def get_dish(dish_id: str, request: Request) -> DishResponseSchema:
 
 
 @router.post(
-    "",  # ← изменено
+    "",
     response_model=DishResponseSchema,
     status_code=status.HTTP_201_CREATED
 )

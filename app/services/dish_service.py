@@ -7,6 +7,7 @@ from typing import List, Optional
 from PIL import Image
 import io
 
+from tortoise.expressions import Q
 from shared.models.dish import Dish
 from shared.models.business import Business
 from shared.models.user import User
@@ -40,6 +41,100 @@ class DishService:
         if business_id:
             return await Dish.filter(business_id=business_id).all()
         return await Dish.all()
+
+    @staticmethod
+    async def search_dishes(
+            keywords: List[str],
+            business_id: Optional[str] = None,
+            category: Optional[str] = None,
+            cuisine: Optional[str] = None,
+            is_available: Optional[bool] = None
+    ) -> List[Dish]:
+        """
+        Search dishes by keywords and filters.
+
+        Searches in: title, description, tags, category, cuisine, ingredients, allergens.
+
+        Args:
+            keywords: List of keywords to search for
+            business_id: Optional business UUID to filter by
+            category: Optional category filter
+            cuisine: Optional cuisine filter
+            is_available: Optional availability filter
+
+        Returns:
+            List of matching dishes
+        """
+        query = Dish.all()
+
+        # Keyword search - ищем по всем полям
+        if keywords:
+            keyword_queries = Q()
+
+            for keyword in keywords:
+                keyword_lower = keyword.lower().strip()
+                if not keyword_lower:
+                    continue
+
+                # Поиск в текстовых полях (case-insensitive)
+                keyword_q = (
+                        Q(title__icontains=keyword_lower) |
+                        Q(description__icontains=keyword_lower) |
+                        Q(category__icontains=keyword_lower) |
+                        Q(cuisine__icontains=keyword_lower)
+                )
+
+                keyword_queries |= keyword_q
+
+            if keyword_queries:
+                query = query.filter(keyword_queries)
+
+        # Дополнительная фильтрация по JSON полям (tags, ingredients, allergens)
+        # Это делается после получения результатов, так как Tortoise ORM имеет ограничения с JSON
+        dishes = await query.all()
+
+        if keywords:
+            filtered_dishes = []
+            for dish in dishes:
+                # Проверяем JSON поля
+                keywords_lower = [k.lower().strip() for k in keywords if k.strip()]
+
+                tags = [tag.lower() for tag in (dish.tags or [])]
+                ingredients = [ing.lower() for ing in (dish.ingredients or [])]
+                allergens = [alg.lower() for alg in (dish.allergens or [])]
+
+                # Если хотя бы одно ключевое слово найдено в JSON полях или уже нашли в текстовых
+                found = False
+                for kw in keywords_lower:
+                    if (kw in tags or
+                            kw in ingredients or
+                            kw in allergens or
+                            kw in dish.title.lower() or
+                            kw in dish.description.lower() or
+                            (dish.category and kw in dish.category.lower()) or
+                            (dish.cuisine and kw in dish.cuisine.lower())):
+                        found = True
+                        break
+
+                if found:
+                    filtered_dishes.append(dish)
+
+            dishes = filtered_dishes
+
+        # Дополнительные фильтры
+        if business_id:
+            dishes = [d for d in dishes if str(d.business_id) == business_id]
+
+        if category:
+            dishes = [d for d in dishes if d.category and d.category.lower() == category.lower()]
+
+        if cuisine:
+            dishes = [d for d in dishes if d.cuisine and d.cuisine.lower() == cuisine.lower()]
+
+        if is_available is not None:
+            dishes = [d for d in dishes if d.is_available == is_available]
+
+        return dishes
 
     @staticmethod
     async def get_dish_by_id(dish_id: str) -> Dish:
@@ -165,7 +260,12 @@ class DishService:
             description=dish_data.description,
             price=Decimal(dish_data.price),
             image_path=image_filename,
-            is_available=dish_data.is_available
+            is_available=dish_data.is_available,
+            tags=dish_data.tags,
+            category=dish_data.category,
+            cuisine=dish_data.cuisine,
+            ingredients=dish_data.ingredients,
+            allergens=dish_data.allergens
         )
 
         return dish
@@ -207,6 +307,21 @@ class DishService:
 
         if dish_data.is_available is not None:
             update_fields['is_available'] = dish_data.is_available
+
+        if dish_data.tags is not None:
+            update_fields['tags'] = dish_data.tags
+
+        if dish_data.category is not None:
+            update_fields['category'] = dish_data.category
+
+        if dish_data.cuisine is not None:
+            update_fields['cuisine'] = dish_data.cuisine
+
+        if dish_data.ingredients is not None:
+            update_fields['ingredients'] = dish_data.ingredients
+
+        if dish_data.allergens is not None:
+            update_fields['allergens'] = dish_data.allergens
 
         if dish_data.image is not None:
             old_image_path = Path(settings.UPLOAD_DIR) / dish.image_path
