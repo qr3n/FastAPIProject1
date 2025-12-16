@@ -14,7 +14,6 @@ class DishCreateSchema(BaseModel):
     image: str = Field(..., description="Base64 encoded image")
     is_available: bool = True
 
-    # Новые поля
     tags: List[str] = Field(default_factory=list, description="Tags for categorization")
     category: Optional[str] = Field(None, max_length=50, description="Dish category")
     cuisine: Optional[str] = Field(None, max_length=50, description="Cuisine type")
