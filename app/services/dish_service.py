@@ -42,32 +42,36 @@ class DishService:
             return await Dish.filter(business_id=business_id).all()
         return await Dish.all()
 
+    # app/services/dish_service.py
+
+    # app/services/dish_service.py
+
     @staticmethod
     async def search_dishes(
             keywords: List[str],
             business_id: Optional[str] = None,
-            category: Optional[str] = None,
-            cuisine: Optional[str] = None,
-            is_available: Optional[bool] = None
+            categories: Optional[List[str]] = None,
+            cuisines: Optional[List[str]] = None,
+            is_available: Optional[bool] = None,
+            price_max: Optional[float] = None
     ) -> List[Dish]:
         """
         Search dishes by keywords and filters.
 
-        Searches in: title, description, tags, category, cuisine, ingredients, allergens.
-
         Args:
             keywords: List of keywords to search for
             business_id: Optional business UUID to filter by
-            category: Optional category filter
-            cuisine: Optional cuisine filter
+            categories: Optional list of categories to match
+            cuisines: Optional list of cuisines to match
             is_available: Optional availability filter
+            price_max: Optional maximum price filter
 
         Returns:
             List of matching dishes
         """
         query = Dish.all()
 
-        # Keyword search - ищем по всем полям
+        # Keyword search - ищем по всем текстовым полям
         if keywords:
             keyword_queries = Q()
 
@@ -76,7 +80,6 @@ class DishService:
                 if not keyword_lower:
                     continue
 
-                # Поиск в текстовых полях (case-insensitive)
                 keyword_q = (
                         Q(title__icontains=keyword_lower) |
                         Q(description__icontains=keyword_lower) |
@@ -89,21 +92,19 @@ class DishService:
             if keyword_queries:
                 query = query.filter(keyword_queries)
 
-        # Дополнительная фильтрация по JSON полям (tags, ingredients, allergens)
-        # Это делается после получения результатов, так как Tortoise ORM имеет ограничения с JSON
         dishes = await query.all()
 
+        # Фильтрация по JSON полям (tags, ingredients, allergens)
         if keywords:
             filtered_dishes = []
             for dish in dishes:
-                # Проверяем JSON поля
                 keywords_lower = [k.lower().strip() for k in keywords if k.strip()]
 
                 tags = [tag.lower() for tag in (dish.tags or [])]
                 ingredients = [ing.lower() for ing in (dish.ingredients or [])]
                 allergens = [alg.lower() for alg in (dish.allergens or [])]
 
-                # Если хотя бы одно ключевое слово найдено в JSON полях или уже нашли в текстовых
+                # Проверяем, есть ли хотя бы одно совпадение
                 found = False
                 for kw in keywords_lower:
                     if (kw in tags or
@@ -121,18 +122,33 @@ class DishService:
 
             dishes = filtered_dishes
 
-        # Дополнительные фильтры
+        # Фильтр по business_id
         if business_id:
             dishes = [d for d in dishes if str(d.business_id) == business_id]
 
-        if category:
-            dishes = [d for d in dishes if d.category and d.category.lower() == category.lower()]
+        # Фильтр по categories (если блюдо входит в любую из категорий)
+        if categories:
+            categories_lower = [c.lower() for c in categories]
+            dishes = [
+                d for d in dishes
+                if d.category and d.category.lower() in categories_lower
+            ]
 
-        if cuisine:
-            dishes = [d for d in dishes if d.cuisine and d.cuisine.lower() == cuisine.lower()]
+        # Фильтр по cuisines (если блюдо входит в любую из кухонь)
+        if cuisines:
+            cuisines_lower = [c.lower() for c in cuisines]
+            dishes = [
+                d for d in dishes
+                if d.cuisine and d.cuisine.lower() in cuisines_lower
+            ]
 
+        # Фильтр по доступности
         if is_available is not None:
             dishes = [d for d in dishes if d.is_available == is_available]
+
+        # Фильтр по максимальной цене
+        if price_max is not None:
+            dishes = [d for d in dishes if float(d.price) <= price_max]
 
         return dishes
 

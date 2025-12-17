@@ -5,7 +5,7 @@ from typing import List, Optional
 from app.schemas.dish import (
     DishCreateSchema,
     DishUpdateSchema,
-    DishResponseSchema
+    DishResponseSchema, DishSearchSchema
 )
 from app.services.dish_service import DishService
 from app.api.v1.dependencies.auth import get_current_user
@@ -47,40 +47,36 @@ async def get_dishes(
     ]
 
 
-@router.get("/search", response_model=List[DishResponseSchema])
+# app/api/v1/endpoints/dishes.py
+
+# app/api/v1/endpoints/dishes.py
+
+@router.post("/search", response_model=List[DishResponseSchema])
 async def search_dishes(
         request: Request,
-        keywords: List[str] = Query(..., description="Keywords to search for"),
-        business_id: Optional[str] = Query(None, description="Filter by business ID"),
-        category: Optional[str] = Query(None, description="Filter by category"),
-        cuisine: Optional[str] = Query(None, description="Filter by cuisine"),
-        is_available: Optional[bool] = Query(None, description="Filter by availability")
+        search_params: DishSearchSchema
 ) -> List[DishResponseSchema]:
     """
     Search dishes by keywords and filters.
 
-    Searches in: title, description, tags, category, cuisine, ingredients, allergens.
+    Designed for AI agent tool calls.
 
-    Args:
-        request: FastAPI request object
-        keywords: List of keywords to search for (e.g., ['pasta', 'tomato'])
-        business_id: Optional business UUID to filter by
-        category: Optional category to filter by (e.g., 'appetizer', 'main', 'dessert')
-        cuisine: Optional cuisine to filter by (e.g., 'italian', 'asian')
-        is_available: Optional availability filter
-
-    Returns:
-        List of matching dishes
-
-    Example:
-        GET /dishes/search?keywords=pasta&keywords=cheese&category=main&cuisine=italian
+    Request body example:
+    {
+        "query": ["курица", "томаты"],
+        "category": ["main", "appetizer"],
+        "cuisine": ["italian"],
+        "price_max": 500.0,
+        "business_id": "uuid-here"
+    }
     """
     dishes = await DishService.search_dishes(
-        keywords=keywords,
-        business_id=business_id,
-        category=category,
-        cuisine=cuisine,
-        is_available=is_available
+        keywords=search_params.query,
+        business_id=search_params.business_id,
+        categories=search_params.category,
+        cuisines=search_params.cuisine,
+        price_max=search_params.price_max,
+        is_available=search_params.is_available
     )
 
     base_url = str(request.base_url).rstrip('/')
@@ -89,7 +85,6 @@ async def search_dishes(
         DishResponseSchema.from_orm_dish(dish, base_url)
         for dish in dishes
     ]
-
 
 @router.get("/{dish_id}", response_model=DishResponseSchema)
 async def get_dish(dish_id: str, request: Request) -> DishResponseSchema:

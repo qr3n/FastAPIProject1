@@ -158,3 +158,51 @@ class DishResponseSchema(BaseModel):
             created_at=dish.created_at.isoformat(),
             updated_at=dish.updated_at.isoformat()
         )
+
+
+
+class DishSearchSchema(BaseModel):
+    """Schema for AI agent dish search."""
+
+    query: List[str] = Field(
+        ...,
+        min_length=1,
+        description="List of keywords to search for"
+    )
+    category: Optional[List[str]] = Field(
+        None,
+        description="List of categories to filter by"
+    )
+    cuisine: Optional[List[str]] = Field(
+        None,
+        description="List of cuisine types to filter by"
+    )
+    price_max: Optional[float] = Field(
+        None,
+        gt=0,
+        description="Maximum price filter"
+    )
+    business_id: Optional[str] = Field(
+        None,
+        description="Business UUID to filter by"
+    )
+    is_available: Optional[bool] = Field(
+        None,
+        description="Filter by availability"
+    )
+
+    @field_validator('query', 'category', 'cuisine')
+    @classmethod
+    def normalize_strings(cls, value: Optional[List[str]]) -> Optional[List[str]]:
+        """Normalize and clean string lists."""
+        if value is None:
+            return value
+        return [item.strip().lower() for item in value if item.strip()]
+
+    @field_validator('price_max')
+    @classmethod
+    def validate_price(cls, value: Optional[float]) -> Optional[float]:
+        """Validate price."""
+        if value is not None and value > 9999999.99:
+            raise ValueError('Price is too large')
+        return value
