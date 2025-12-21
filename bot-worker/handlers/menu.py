@@ -15,7 +15,6 @@ def register_menu_handlers(router: Router, business_id: str):
     async def cmd_menu(message: Message):
         """Display business menu."""
 
-        # Получаем блюда из БД с кэшированием
         dishes = await Dish.filter(
             business_id=business_id,
             is_available=True

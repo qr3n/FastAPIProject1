@@ -47,10 +47,6 @@ async def get_dishes(
     ]
 
 
-# app/api/v1/endpoints/dishes.py
-
-# app/api/v1/endpoints/dishes.py
-
 @router.post("/search", response_model=List[DishResponseSchema])
 async def search_dishes(
         request: Request,
