@@ -118,6 +118,7 @@ class TableService:
             )
 
         # Check for overlapping bookings
+        # ИСПРАВЛЕНИЕ: создаем naive datetime для сравнения
         booking_start = datetime.combine(booking_data.booking_date, booking_data.booking_time)
         booking_end = booking_start + timedelta(minutes=booking_data.duration_minutes)
 
@@ -128,9 +129,11 @@ class TableService:
         ).prefetch_related("table")
 
         for booking in overlapping:
+            # ИСПРАВЛЕНИЕ: также создаем naive datetime из существующих бронирований
             existing_start = datetime.combine(booking.booking_date, booking.booking_time)
             existing_end = existing_start + timedelta(minutes=booking.duration_minutes)
 
+            # Проверка пересечения временных интервалов
             if not (booking_end <= existing_start or booking_start >= existing_end):
                 raise HTTPException(
                     status_code=status.HTTP_409_CONFLICT,
@@ -152,6 +155,9 @@ class TableService:
         # Update table status
         table.status = TableStatus.BOOKED
         await table.save()
+
+        # ВАЖНО: загружаем связь tg_user для корректного ответа
+        await booking.fetch_related("tg_user")
 
         return booking
 
