@@ -37,11 +37,10 @@ async def create_table(
 @router.get("", response_model=List[TableResponseSchema])
 async def get_tables(
     business_id: str,
-    current_user: User = Depends(get_current_user)
 ) -> List[TableResponseSchema]:
     """Get all tables for a business."""
     try:
-        tables = await TableService.get_business_tables(business_id, current_user)
+        tables = await TableService.get_business_tables(business_id)
         return [TableResponseSchema.from_orm_table(t) for t in tables]
     except (BusinessNotFoundError, BusinessAccessDeniedError) as e:
         raise HTTPException(

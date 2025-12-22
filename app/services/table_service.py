@@ -42,16 +42,13 @@ class TableService:
         return table
 
     @staticmethod
-    async def get_business_tables(business_id: str, current_user: User) -> List[Table]:
+    async def get_business_tables(business_id: str) -> List[Table]:
         """Get all tables for a business."""
         from shared.models.business import Business
 
         business = await Business.get_or_none(id=business_id)
         if not business:
             raise BusinessNotFoundError(f"Business {business_id} not found")
-
-        if business.owner_id != current_user.id:
-            raise BusinessAccessDeniedError("You don't have access to this business")
 
         tables = await Table.filter(business_id=business_id, is_active=True)
         return tables
