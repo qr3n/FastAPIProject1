@@ -91,8 +91,8 @@ class TableService:
 
     @staticmethod
     async def book_table(
-        table_id: str,
-        booking_data: TableBookingCreateSchema
+            table_id: str,
+            booking_data: TableBookingCreateSchema
     ) -> TableBooking:
         """Book a table."""
         table = await Table.get_or_none(id=table_id)
@@ -118,7 +118,7 @@ class TableService:
             )
 
         # Check for overlapping bookings
-        # ИСПРАВЛЕНИЕ: создаем naive datetime для сравнения
+        # Создаем naive datetime для нового бронирования
         booking_start = datetime.combine(booking_data.booking_date, booking_data.booking_time)
         booking_end = booking_start + timedelta(minutes=booking_data.duration_minutes)
 
@@ -129,8 +129,18 @@ class TableService:
         ).prefetch_related("table")
 
         for booking in overlapping:
-            # ИСПРАВЛЕНИЕ: также создаем naive datetime из существующих бронирований
-            existing_start = datetime.combine(booking.booking_date, booking.booking_time)
+            # КЛЮЧЕВОЕ ИСПРАВЛЕНИЕ: конвертируем aware datetime в naive
+            # Если booking.booking_date и booking.booking_time являются aware, убираем timezone
+            existing_date = booking.booking_date
+            existing_time = booking.booking_time
+
+            # Убираем timezone info если есть
+            if hasattr(existing_date, 'tzinfo') and existing_date.tzinfo is not None:
+                existing_date = existing_date.replace(tzinfo=None)
+            if hasattr(existing_time, 'tzinfo') and existing_time.tzinfo is not None:
+                existing_time = existing_time.replace(tzinfo=None)
+
+            existing_start = datetime.combine(existing_date, existing_time)
             existing_end = existing_start + timedelta(minutes=booking.duration_minutes)
 
             # Проверка пересечения временных интервалов
@@ -156,11 +166,10 @@ class TableService:
         table.status = TableStatus.BOOKED
         await table.save()
 
-        # ВАЖНО: загружаем связь tg_user для корректного ответа
+        # Загружаем связь tg_user для корректного ответа
         await booking.fetch_related("tg_user")
 
         return booking
-
     @staticmethod
     async def cancel_booking(booking_id: str, current_user: User) -> TableBooking:
         """Cancel a booking."""
