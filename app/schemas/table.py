@@ -1,5 +1,5 @@
 # app/schemas/table.py
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, validator
 from typing import Optional, List
 from datetime import date, time
 from enum import Enum
@@ -9,6 +9,10 @@ class TableStatusEnum(str, Enum):
     AVAILABLE = "available"
     BOOKED = "booked"
     OCCUPIED = "occupied"
+
+
+
+
 
 
 class TableCreateSchema(BaseModel):
@@ -94,3 +98,23 @@ class TableBookingResponseSchema(BaseModel):
             created_at=booking.created_at.isoformat(),
             updated_at=booking.updated_at.isoformat()
         )
+
+class BulkTablesSchema(BaseModel):
+    """Schema for bulk table creation/update."""
+    total_tables: int = Field(..., gt=0, le=100)
+    default_capacity: int = Field(..., gt=0, le=20)
+
+    @validator('total_tables')
+    def validate_total_tables(cls, v):
+        if v > 100:
+            raise ValueError('Cannot create more than 100 tables at once')
+        return v
+
+
+class BulkTablesResponseSchema(BaseModel):
+    """Response schema for bulk table operations."""
+    created: int
+    updated: int
+    deleted: int
+    total: int
+    tables: List[TableResponseSchema]

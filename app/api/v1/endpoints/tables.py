@@ -7,7 +7,7 @@ from app.schemas.table import (
     TableUpdateSchema,
     TableResponseSchema,
     TableBookingCreateSchema,
-    TableBookingResponseSchema
+    TableBookingResponseSchema, BulkTablesResponseSchema, BulkTablesSchema
 )
 from app.services.table_service import TableService
 from app.api.v1.dependencies.auth import get_current_user
@@ -129,3 +129,33 @@ async def cancel_booking(
         await TableService.cancel_booking(booking_id, current_user)
     except BusinessAccessDeniedError as e:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(e))
+
+
+@router.post("/bulk", response_model=BulkTablesResponseSchema)
+async def bulk_update_tables(
+        business_id: str,
+        bulk_data: BulkTablesSchema,
+        current_user: User = Depends(get_current_user)
+) -> BulkTablesResponseSchema:
+    """
+    Bulk create/update/delete tables for a business.
+
+    - Creates new tables if total_tables > current count
+    - Deletes tables (soft delete) if total_tables < current count (only if no active bookings)
+    - Updates capacity for all tables
+    """
+    try:
+        result = await TableService.bulk_update_tables(business_id, bulk_data, current_user)
+        return BulkTablesResponseSchema(
+            created=result['created'],
+            updated=result['updated'],
+            deleted=result['deleted'],
+            total=result['total'],
+            tables=[TableResponseSchema.from_orm_table(t) for t in result['tables']]
+        )
+    except (BusinessNotFoundError, BusinessAccessDeniedError) as e:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN if isinstance(e,
+                                                                BusinessAccessDeniedError) else status.HTTP_404_NOT_FOUND,
+            detail=str(e)
+        )

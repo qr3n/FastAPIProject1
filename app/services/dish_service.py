@@ -376,3 +376,5 @@ class DishService:
             image_path.unlink()
 
         await dish.delete()
+
+

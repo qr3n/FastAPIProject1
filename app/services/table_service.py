@@ -1,6 +1,6 @@
 # app/services/table_service.py
 from shared.models.table import Table, TableBooking, TableStatus
-from app.schemas.table import TableCreateSchema, TableUpdateSchema, TableBookingCreateSchema
+from app.schemas.table import TableCreateSchema, TableUpdateSchema, TableBookingCreateSchema, BulkTablesSchema
 from shared.models.tg_user import TGUser
 from shared.models.user import User
 from app.exceptions.business_exceptions import BusinessNotFoundError, BusinessAccessDeniedError
@@ -198,3 +198,114 @@ class TableService:
         table = await TableService.get_table(table_id, current_user)
         bookings = await TableBooking.filter(table_id=table_id).prefetch_related("tg_user")
         return bookings
+
+    @staticmethod
+    async def bulk_update_tables(
+            business_id: str,
+            bulk_data: BulkTablesSchema,
+            current_user: User
+    ) -> dict:
+        """
+        Bulk create/update/delete tables for a business.
+        Logic:
+        - If total_tables > current tables: create new tables
+        - If total_tables < current tables: delete tables without bookings (soft delete)
+        - Update capacity for all existing tables
+        """
+        from shared.models.business import Business
+
+        business = await Business.get_or_none(id=business_id)
+        if not business:
+            raise BusinessNotFoundError(f"Business {business_id} not found")
+
+        if business.owner_id != current_user.id:
+            raise BusinessAccessDeniedError("You don't have access to this business")
+
+        # Get existing active tables
+        existing_tables = await Table.filter(
+            business_id=business_id,
+            is_active=True
+        ).order_by('table_number')
+
+        current_count = len(existing_tables)
+        target_count = bulk_data.total_tables
+
+        created_count = 0
+        updated_count = 0
+        deleted_count = 0
+
+        # Case 1: Need to create more tables
+        if target_count > current_count:
+            # Update existing tables capacity
+            for table in existing_tables:
+                if table.capacity != bulk_data.default_capacity:
+                    table.capacity = bulk_data.default_capacity
+                    await table.save()
+                    updated_count += 1
+
+            # Find the highest table number
+            max_table_number = max([t.table_number for t in existing_tables]) if existing_tables else 0
+
+            # Create new tables
+            tables_to_create = target_count - current_count
+            for i in range(tables_to_create):
+                await Table.create(
+                    business_id=business_id,
+                    table_number=max_table_number + i + 1,
+                    capacity=bulk_data.default_capacity
+                )
+                created_count += 1
+
+        # Case 2: Need to delete tables
+        elif target_count < current_count:
+            tables_to_keep = target_count
+            tables_to_delete = current_count - target_count
+
+            # Update tables we're keeping
+            for table in existing_tables[:tables_to_keep]:
+                if table.capacity != bulk_data.default_capacity:
+                    table.capacity = bulk_data.default_capacity
+                    await table.save()
+                    updated_count += 1
+
+            # Check which tables can be deleted (no active bookings)
+            for table in existing_tables[tables_to_keep:]:
+                # Check if table has active bookings
+                has_active_bookings = await TableBooking.filter(
+                    table_id=table.id,
+                    is_cancelled=False,
+                    booking_date__gte=date.today()
+                ).exists()
+
+                if has_active_bookings:
+                    raise HTTPException(
+                        status_code=status.HTTP_400_BAD_REQUEST,
+                        detail=f"Cannot delete table {table.table_number}: has active bookings. Please cancel bookings first."
+                    )
+
+                # Soft delete
+                table.is_active = False
+                await table.save()
+                deleted_count += 1
+
+        # Case 3: Same count, just update capacity
+        else:
+            for table in existing_tables:
+                if table.capacity != bulk_data.default_capacity:
+                    table.capacity = bulk_data.default_capacity
+                    await table.save()
+                    updated_count += 1
+
+        # Get final state of tables
+        final_tables = await Table.filter(
+            business_id=business_id,
+            is_active=True
+        ).order_by('table_number')
+
+        return {
+            'created': created_count,
+            'updated': updated_count,
+            'deleted': deleted_count,
+            'total': len(final_tables),
+            'tables': final_tables
+        }
