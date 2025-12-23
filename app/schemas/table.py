@@ -18,6 +18,7 @@ class TableStatusEnum(str, Enum):
 class TableCreateSchema(BaseModel):
     table_number: int = Field(..., gt=0)
     capacity: int = Field(..., gt=0)
+    floor: int = Field(default=1)  # По умолчанию 1 этаж
 
 
 class TableUpdateSchema(BaseModel):
@@ -25,6 +26,7 @@ class TableUpdateSchema(BaseModel):
     capacity: Optional[int] = Field(None, gt=0)
     status: Optional[TableStatusEnum] = None
     is_active: Optional[bool] = None
+    floor: Optional[int] = None  # Можно обновить этаж
 
 
 class TableResponseSchema(BaseModel):
@@ -35,6 +37,7 @@ class TableResponseSchema(BaseModel):
     is_active: bool
     created_at: str
     updated_at: str
+    floor: int  # Добавляем этаж в ответ
 
     class Config:
         from_attributes = True
@@ -48,7 +51,8 @@ class TableResponseSchema(BaseModel):
             status=table.status,
             is_active=table.is_active,
             created_at=table.created_at.isoformat(),
-            updated_at=table.updated_at.isoformat()
+            updated_at=table.updated_at.isoformat(),
+            floor=table.floor,  # Добавляем этаж
         )
 
 
@@ -103,6 +107,7 @@ class BulkTablesSchema(BaseModel):
     """Schema for bulk table creation/update."""
     total_tables: int = Field(..., gt=0, le=100)
     default_capacity: int = Field(..., gt=0, le=20)
+    default_floor: int = Field(default=1)
 
     @validator('total_tables')
     def validate_total_tables(cls, v):

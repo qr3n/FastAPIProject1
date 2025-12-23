@@ -10,6 +10,7 @@ class TableStatus(str, Enum):
     OCCUPIED = "occupied"
 
 
+# shared/models/table.py
 class Table(Model):
     """
     Table model representing a restaurant table.
@@ -18,6 +19,7 @@ class Table(Model):
     business = fields.ForeignKeyField("models.Business", related_name="tables")
     table_number = fields.IntField()
     capacity = fields.IntField()  # Number of seats
+    floor = fields.IntField(default=1)  # Floor number (can be negative)
     status = fields.CharEnumField(TableStatus, default=TableStatus.AVAILABLE)
     is_active = fields.BooleanField(default=True)
     created_at = fields.DatetimeField(auto_now_add=True)
@@ -27,11 +29,11 @@ class Table(Model):
 
     class Meta:
         table = "tables"
-        ordering = ["table_number"]
+        ordering = ["floor", "table_number"]  # Сортировка по этажу, затем по номеру
         unique_together = (("business", "table_number"),)
 
     def __str__(self) -> str:
-        return f"Table {self.table_number} (Capacity: {self.capacity})"
+        return f"Table {self.table_number}, Floor {self.floor} (Capacity: {self.capacity})"
 
 
 class TableBooking(Model):

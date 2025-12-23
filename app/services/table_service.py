@@ -248,10 +248,16 @@ class TableService:
 
         # Case 1: Need to create more tables
         if target_count > current_count:
-            # Update existing tables capacity
+            # Update existing tables capacity and floor
             for table in existing_tables:
+                updated = False
                 if table.capacity != bulk_data.default_capacity:
                     table.capacity = bulk_data.default_capacity
+                    updated = True
+                if table.floor != bulk_data.default_floor:
+                    table.floor = bulk_data.default_floor
+                    updated = True
+                if updated:
                     await table.save()
                     updated_count += 1
 
@@ -264,7 +270,9 @@ class TableService:
                 await Table.create(
                     business_id=business_id,
                     table_number=max_table_number + i + 1,
-                    capacity=bulk_data.default_capacity
+                    capacity=bulk_data.default_capacity,
+                    floor=bulk_data.default_floor  # Добавляем этаж
+
                 )
                 created_count += 1
 
@@ -275,8 +283,14 @@ class TableService:
 
             # Update tables we're keeping
             for table in existing_tables[:tables_to_keep]:
+                updated = False
                 if table.capacity != bulk_data.default_capacity:
                     table.capacity = bulk_data.default_capacity
+                    updated = True
+                if table.floor != bulk_data.default_floor:
+                    table.floor = bulk_data.default_floor
+                    updated = True
+                if updated:
                     await table.save()
                     updated_count += 1
 
@@ -300,11 +314,16 @@ class TableService:
                 await table.save()
                 deleted_count += 1
 
-        # Case 3: Same count, just update capacity
         else:
             for table in existing_tables:
+                updated = False
                 if table.capacity != bulk_data.default_capacity:
                     table.capacity = bulk_data.default_capacity
+                    updated = True
+                if table.floor != bulk_data.default_floor:
+                    table.floor = bulk_data.default_floor
+                    updated = True
+                if updated:
                     await table.save()
                     updated_count += 1
 
