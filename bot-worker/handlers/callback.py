@@ -70,7 +70,7 @@ async def ai_callback_handler(request: web.Request) -> web.Response:
                     chat_id=user.telegram_id,
                     photo=image_url,
                     caption=message_text,
-                    parse_mode="HTML"
+                    parse_mode="Markdown"
                 )
                 logger.info(f"✅ AI response with image delivered to user {user.telegram_id}")
             except Exception as img_error:
@@ -79,7 +79,7 @@ async def ai_callback_handler(request: web.Request) -> web.Response:
                 await bot.send_message(
                     chat_id=user.telegram_id,
                     text=message_text,
-                    parse_mode="HTML"
+                    parse_mode="Markdown"
                 )
                 logger.info(f"✅ AI response (text only) delivered to user {user.telegram_id}")
         else:
@@ -87,7 +87,7 @@ async def ai_callback_handler(request: web.Request) -> web.Response:
             await bot.send_message(
                 chat_id=user.telegram_id,
                 text=message_text,
-                parse_mode="HTML"
+                parse_mode="Markdown"
             )
             logger.info(f"✅ AI response delivered to user {user.telegram_id}")
 
