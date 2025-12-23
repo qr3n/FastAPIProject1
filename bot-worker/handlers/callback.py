@@ -40,7 +40,7 @@ async def ai_callback_handler(request: web.Request) -> web.Response:
             return web.Response(status=400, text="Missing required fields")
 
         message_text = message.get('result_text')
-        image_url = message.get('image_url')
+        image_url = message.get('url')
 
         if not message_text:
             return web.Response(status=400, text="Missing result_text")
