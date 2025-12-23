@@ -1,6 +1,8 @@
 # bot-worker/handlers/ai_assistant.py
 from aiogram import Router, F
 from aiogram.types import Message
+
+from shared.models.business import Business
 from shared.models.tg_user import TGUser
 from datetime import datetime
 import logging
@@ -21,6 +23,7 @@ def register_ai_handlers(router: Router, business_id: str):
         try:
             # Получаем или создаем пользователя
             user = await TGUser.filter(telegram_id=message.from_user.id).first()
+            business = await Business.filter(id=business_id).first()
 
             if not user:
                 # Создаем нового пользователя
@@ -56,6 +59,8 @@ def register_ai_handlers(router: Router, business_id: str):
                     "user_id": user.telegram_id,
                     "business_id": business_id,
                     "message": message.text,
+                    "business_name": business.name,
+                    "business_description": business.description,
                     "user_data": {
                         "username": user.username,
                         "first_name": user.first_name,
