@@ -27,9 +27,12 @@ class Settings(BaseSettings):
     SECRET_KEY: str
     SESSION_COOKIE_NAME: str = "session_id"
     SESSION_MAX_AGE: int = 86400 * 30  # 30 days
-    SESSION_COOKIE_SECURE: bool = True
+
+    # ← ИЗМЕНЕНО: для локальной разработки используем lax без secure
+    # для продакшена нужно будет переключить на none + secure
+    SESSION_COOKIE_SECURE: bool = False  # ← False для http://localhost
     SESSION_COOKIE_HTTPONLY: bool = True
-    SESSION_COOKIE_SAMESITE: str = "lax"
+    SESSION_COOKIE_SAMESITE: str = "lax"  # ← lax работает для same-site (оба localhost)
     SESSION_COOKIE_DOMAIN: str | None = None
 
     VERIFICATION_CODE_EXPIRY: int = 600  # 10 minutes in seconds
@@ -41,12 +44,12 @@ class Settings(BaseSettings):
     SMTP_USER: str = "qren.freelance@gmail.com"
     SMTP_PASSWORD: str = "tevy zzdx vksa vqid"
     SMTP_FROM_NAME: str = "Добро пожаловать!"
-    SENDGRID_API_KEY: str = "your-sendgrid-api-key"  # Замените на ваш ключ
+    SENDGRID_API_KEY: str = "your-sendgrid-api-key"
 
     SMSC_LOGIN: str = "Igul"
     SMSC_PASSWORD: str = "HgyHFcvF9"
 
-    BOT_WORKER_URL: str =  "http://bot-worker:8080"
+    BOT_WORKER_URL: str = "http://bot-worker:8080"
     WEBHOOK_BASE_URL: str = "${WEBHOOK_BASE_URL:-http://localhost}"
     REDIS_URL: str
 
