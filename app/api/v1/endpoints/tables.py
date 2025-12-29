@@ -1,5 +1,5 @@
 # app/api/v1/endpoints/tables.py
-from fastapi import APIRouter, Depends, status, HTTPException
+from fastapi import APIRouter, Depends, status, HTTPException, BackgroundTasks
 from typing import List
 
 from app.schemas.table import (
@@ -9,6 +9,7 @@ from app.schemas.table import (
     TableBookingCreateSchema,
     TableBookingResponseSchema, BulkTablesResponseSchema, BulkTablesSchema
 )
+from app.services.notification_service import NotificationService
 from app.services.table_service import TableService
 from app.api.v1.dependencies.auth import get_current_user
 from shared.models.user import User
@@ -93,12 +94,20 @@ async def delete_table(
 
 @router.post("/{table_id}/bookings", response_model=TableBookingResponseSchema, status_code=status.HTTP_201_CREATED)
 async def book_table(
-    business_id: str,
-    table_id: str,
-    booking_data: TableBookingCreateSchema
+        business_id: str,
+        table_id: str,
+        booking_data: TableBookingCreateSchema,
+        background_tasks: BackgroundTasks
 ) -> TableBookingResponseSchema:
     """Book a table (public endpoint)."""
-    booking = await TableService.book_table(table_id, booking_data)
+    booking, notification_data = await TableService.book_table(table_id, booking_data)
+
+    if notification_data['owner_email']:
+        background_tasks.add_task(
+            NotificationService.send_booking_notification,
+            **notification_data
+        )
+
     return TableBookingResponseSchema.from_orm_booking(booking)
 
 

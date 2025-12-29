@@ -89,27 +89,27 @@ class TableService:
         table.is_active = False
         await table.save()
 
+    # app/services/table_service.py
+
     @staticmethod
     async def book_table(
             table_id: str,
             booking_data: TableBookingCreateSchema
-    ) -> TableBooking:
+    ) -> tuple[TableBooking, dict]:  # Возвращаем кортеж: бронирование + данные для уведомления
         """Book a table."""
-        table = await Table.get_or_none(id=table_id)
+        table = await Table.get_or_none(id=table_id).prefetch_related("business__owner")
         if not table:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="Table not found"
             )
 
-        # Verify table capacity
         if booking_data.num_guests > table.capacity:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail=f"Table capacity is {table.capacity}, cannot book for {booking_data.num_guests} guests"
             )
 
-        # Get or create TGUser
         tg_user = await TGUser.get_or_none(telegram_id=booking_data.telegram_id)
         if not tg_user:
             raise HTTPException(
@@ -117,8 +117,6 @@ class TableService:
                 detail=f"Telegram user {booking_data.telegram_id} not found"
             )
 
-        # Check for overlapping bookings
-        # Создаем naive datetime для нового бронирования
         booking_start = datetime.combine(booking_data.booking_date, booking_data.booking_time)
         booking_end = booking_start + timedelta(minutes=booking_data.duration_minutes)
 
@@ -129,12 +127,9 @@ class TableService:
         ).prefetch_related("table")
 
         for booking in overlapping:
-            # КЛЮЧЕВОЕ ИСПРАВЛЕНИЕ: конвертируем aware datetime в naive
-            # Если booking.booking_date и booking.booking_time являются aware, убираем timezone
             existing_date = booking.booking_date
             existing_time = booking.booking_time
 
-            # Убираем timezone info если есть
             if hasattr(existing_date, 'tzinfo') and existing_date.tzinfo is not None:
                 existing_date = existing_date.replace(tzinfo=None)
             if hasattr(existing_time, 'tzinfo') and existing_time.tzinfo is not None:
@@ -143,7 +138,6 @@ class TableService:
             existing_start = datetime.combine(existing_date, existing_time)
             existing_end = existing_start + timedelta(minutes=booking.duration_minutes)
 
-            # Проверка пересечения временных интервалов
             if not (booking_end <= existing_start or booking_start >= existing_end):
                 raise HTTPException(
                     status_code=status.HTTP_409_CONFLICT,
@@ -169,7 +163,21 @@ class TableService:
         # Загружаем связь tg_user для корректного ответа
         await booking.fetch_related("tg_user")
 
-        return booking
+        # Подготавливаем данные для уведомления
+        notification_data = {
+            'owner_email': table.business.owner.email,
+            'business_name': table.business.name,
+            'guest_name': booking_data.guest_name,
+            'table_number': table.table_number,
+            'booking_date': booking_data.booking_date.strftime('%d.%m.%Y'),
+            'booking_time': booking_data.booking_time.strftime('%H:%M'),
+            'num_guests': booking_data.num_guests,
+            'guest_phone': booking_data.guest_phone
+        }
+
+        return booking, notification_data
+
+
     @staticmethod
     async def cancel_booking(booking_id: str, current_user: User) -> TableBooking:
         """Cancel a booking."""

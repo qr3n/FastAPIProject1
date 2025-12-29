@@ -1,0 +1,160 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: dish_postgres_local
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: dish_user
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-dish_password}
+      POSTGRES_DB: dish_db
+      PGDATA: /var/lib/postgresql/data/pgdata
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U dish_user -d dish_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - dish_network
+
+  redis:
+    image: redis:7-alpine
+    container_name: dish_redis_local
+    restart: unless-stopped
+    command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+    networks:
+      - dish_network
+
+  mailhog:
+    image: mailhog/mailhog:latest
+    container_name: dish_mailhog_local
+    restart: unless-stopped
+    ports:
+      - "8025:8025"
+      - "1025:1025"
+    networks:
+      - dish_network
+
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: dish_backend_local
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: postgres://dish_user:${POSTGRES_PASSWORD:-dish_password}@postgres:5432/dish_db
+      REDIS_URL: redis://redis:6379/0
+      API_V1_PREFIX: /api/v1
+      PROJECT_NAME: Dish Management API
+      DEBUG: "True"
+      CORS_ORIGINS: "http://localhost:3000"
+      MAX_UPLOAD_SIZE: 5242880
+      UPLOAD_DIR: /app/uploads
+      SECRET_KEY: ${SECRET_KEY:-your-super-secret-key-change-this}
+
+      SESSION_COOKIE_NAME: session_id
+      SESSION_MAX_AGE: 2592000
+      SESSION_COOKIE_SECURE: "False"
+      SESSION_COOKIE_HTTPONLY: "True"
+      SESSION_COOKIE_SAMESITE: lax
+      SESSION_COOKIE_DOMAIN:
+
+      VERIFICATION_CODE_EXPIRY: 600
+      VERIFICATION_CODE_MAX_ATTEMPTS: 3
+      VERIFICATION_CODE_RATE_LIMIT: 60
+
+      SMTP_HOST: "mailhog"
+      SMTP_PORT: "1025"
+      SMTP_USER: "noreply@postavan.local"
+      SMTP_PASSWORD: ""
+      SMTP_FROM_NAME: "Postavan"
+      SMTP_USE_TLS: "False"
+
+      SMSC_LOGIN: ${SMSC_LOGIN}
+      SMSC_PASSWORD: ${SMSC_PASSWORD}
+
+      BOT_WORKER_URL: "http://bot-worker:8080"
+      WEBHOOK_BASE_URL: "http://localhost:8000"
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./backend:/app
+      - backend_uploads:/app/uploads
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+    networks:
+      - dish_network
+
+  bot-worker:
+    build:
+      context: .
+      dockerfile: bot-worker/Dockerfile
+    container_name: dish_bot_worker_local
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: postgres://dish_user:${POSTGRES_PASSWORD:-dish_password}@postgres:5432/dish_db
+      REDIS_URL: redis://redis:6379/0
+      BACKEND_API_URL: http://backend:8000
+      LOG_LEVEL: INFO
+      WORKER_ID: worker-1
+      WORKER_PORT: 8080
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./bot-worker:/app
+      - backend_uploads:/app/uploads:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      backend:
+        condition: service_started
+    networks:
+      - dish_network
+
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: dish_pgadmin_local
+    restart: unless-stopped
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@dish.local
+      PGADMIN_DEFAULT_PASSWORD: admin
+      PGADMIN_CONFIG_SERVER_MODE: 'False'
+    ports:
+      - "5050:80"
+    volumes:
+      - pgadmin_data:/var/lib/pgadmin
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - dish_network
+
+volumes:
+  postgres_data:
+  backend_uploads:
+  pgadmin_data:
+  redis_data:
+
+networks:
+  dish_network:
+    driver: bridge

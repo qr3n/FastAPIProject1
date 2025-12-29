@@ -20,6 +20,55 @@ class NotificationService:
     PROXY_USER = 'user210158'
     PROXY_PASS = '03bnt7'
 
+
+    @staticmethod
+    async def send_booking_notification(
+            owner_email: str,
+            business_name: str,
+            guest_name: str,
+            table_number: int,
+            booking_date: str,
+            booking_time: str,
+            num_guests: int,
+            guest_phone: str = None
+    ) -> None:
+        """
+        Send booking notification to business owner.
+
+        Args:
+            owner_email: Business owner's email
+            business_name: Name of the business
+            guest_name: Name of the guest
+            table_number: Table number
+            booking_date: Date of booking
+            booking_time: Time of booking
+            num_guests: Number of guests
+            guest_phone: Guest phone number (optional)
+        """
+        phone_info = f"\nТелефон: {guest_phone}" if guest_phone else ""
+
+        subject = f"Новое бронирование в {business_name}"
+        body = f"""
+    Здравствуйте!
+
+    Новое бронирование столика:
+
+    📅 Дата: {booking_date}
+    🕐 Время: {booking_time}
+    🪑 Столик: #{table_number}
+    👥 Количество гостей: {num_guests}
+    👤 Имя гостя: {guest_name}{phone_info}
+
+    ---
+    Это автоматическое уведомление от вашей системы бронирования.
+        """.strip()
+
+        await NotificationService.send_email(
+            to=owner_email,
+            subject=subject,
+            body=body
+        )
+
     @staticmethod
     async def send_email(to: str, subject: str, body: str) -> None:
         """
