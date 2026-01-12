@@ -18,7 +18,7 @@ from app.exceptions.business_exceptions import BusinessAccessDeniedError, Busine
 router = APIRouter(prefix="/businesses/{business_id}/tables", tags=["tables"])
 
 
-@router.post("", response_model=TableResponseSchema, status_code=status.HTTP_201_CREATED)
+@router.post("", response_model=TableResponseSchema, status_code=status.HTTP_201_CREATED, operation_id="createTable")
 async def create_table(
     business_id: str,
     table_data: TableCreateSchema,
@@ -35,7 +35,7 @@ async def create_table(
         )
 
 
-@router.get("", response_model=List[TableResponseSchema])
+@router.get("", response_model=List[TableResponseSchema], operation_id="getTables")
 async def get_tables(
     business_id: str,
 ) -> List[TableResponseSchema]:
@@ -50,7 +50,7 @@ async def get_tables(
         )
 
 
-@router.get("/{table_id}", response_model=TableResponseSchema)
+@router.get("/{table_id}", response_model=TableResponseSchema, operation_id="getTable")
 async def get_table(
     business_id: str,
     table_id: str,
@@ -64,7 +64,7 @@ async def get_table(
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(e))
 
 
-@router.put("/{table_id}", response_model=TableResponseSchema)
+@router.put("/{table_id}", response_model=TableResponseSchema, operation_id="updateTable")
 async def update_table(
     business_id: str,
     table_id: str,
@@ -79,7 +79,7 @@ async def update_table(
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(e))
 
 
-@router.delete("/{table_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete("/{table_id}", status_code=status.HTTP_204_NO_CONTENT, operation_id="deleteTable")
 async def delete_table(
     business_id: str,
     table_id: str,
@@ -92,7 +92,7 @@ async def delete_table(
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(e))
 
 
-@router.post("/{table_id}/bookings", response_model=TableBookingResponseSchema, status_code=status.HTTP_201_CREATED)
+@router.post("/{table_id}/bookings", response_model=TableBookingResponseSchema, status_code=status.HTTP_201_CREATED, operation_id="bookTable")
 async def book_table(
         business_id: str,
         table_id: str,
@@ -111,7 +111,7 @@ async def book_table(
     return TableBookingResponseSchema.from_orm_booking(booking)
 
 
-@router.get("/{table_id}/bookings", response_model=List[TableBookingResponseSchema])
+@router.get("/{table_id}/bookings", response_model=List[TableBookingResponseSchema], operation_id="getTableBookings")
 async def get_table_bookings(
     business_id: str,
     table_id: str,
@@ -125,21 +125,17 @@ async def get_table_bookings(
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(e))
 
 
-@router.delete("/{table_id}/bookings/{booking_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete("/{table_id}/bookings/{booking_id}", status_code=status.HTTP_204_NO_CONTENT, operation_id="cancelBooking")
 async def cancel_booking(
     business_id: str,
     table_id: str,
-    booking_id: str,
-    current_user: User = Depends(get_current_user)
+    booking_id: str
 ) -> None:
-    """Cancel a booking."""
-    try:
-        await TableService.cancel_booking(booking_id, current_user)
-    except BusinessAccessDeniedError as e:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(e))
+    """Cancel a booking (public endpoint)."""
+    await TableService.cancel_booking(booking_id)
 
 
-@router.post("/bulk", response_model=BulkTablesResponseSchema)
+@router.post("/bulk", response_model=BulkTablesResponseSchema, operation_id="bulkUpdateTables")
 async def bulk_update_tables(
         business_id: str,
         bulk_data: BulkTablesSchema,
@@ -163,7 +159,6 @@ async def bulk_update_tables(
         )
     except (BusinessNotFoundError, BusinessAccessDeniedError) as e:
         raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN if isinstance(e,
-                                                                BusinessAccessDeniedError) else status.HTTP_404_NOT_FOUND,
+            status_code=status.HTTP_403_FORBIDDEN if isinstance(e, BusinessAccessDeniedError) else status.HTTP_404_NOT_FOUND,
             detail=str(e)
         )

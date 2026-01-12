@@ -1,7 +1,7 @@
 # app/schemas/table.py
 from pydantic import BaseModel, Field, validator
 from typing import Optional, List
-from datetime import date, time
+from datetime import date, time, datetime, timedelta
 from enum import Enum
 
 
@@ -29,6 +29,21 @@ class TableUpdateSchema(BaseModel):
     floor: Optional[int] = None  # Можно обновить этаж
 
 
+class BookingInfoSchema(BaseModel):
+    """Nested schema for booking information in table response."""
+    booking_id: str
+    guest_name: str
+    guest_phone: Optional[str]
+    num_guests: int
+    booking_date: str
+    booking_time: str
+    duration_minutes: int
+    notes: Optional[str]
+    telegram_id: int
+    is_cancelled: bool
+    created_at: str
+
+
 class TableResponseSchema(BaseModel):
     id: str
     table_number: int
@@ -38,12 +53,76 @@ class TableResponseSchema(BaseModel):
     created_at: str
     updated_at: str
     floor: int  # Добавляем этаж в ответ
+    current_booking: Optional[BookingInfoSchema] = None  # Текущее активное бронирование
+    upcoming_bookings: List[BookingInfoSchema] = []  # Все будущие бронирования
 
     class Config:
         from_attributes = True
 
     @classmethod
     def from_orm_table(cls, table):
+        current_booking = None
+        upcoming_bookings = []
+        
+        # Проверяем, есть ли загруженные бронирования
+        # Используем try-except для безопасной проверки
+        try:
+            if hasattr(table, 'table_bookings'):
+                # Проверяем, были ли фактически загружены данные
+                bookings = table.table_bookings
+                
+                # Если это ReverseRelation, который не был prefetched, просто пропускаем
+                if bookings and hasattr(bookings, '_fetched') and not bookings._fetched:
+                    # Данные не загружены, пропускаем
+                    pass
+                else:
+                    from datetime import datetime
+                    
+                    now = datetime.now()
+                    
+                    # Обрабатываем все активные бронирования
+                    for booking in bookings:
+                        if booking.is_cancelled:
+                            continue
+                        
+                        # Получаем telegram_id безопасно
+                        telegram_id = 0
+                        if hasattr(booking, 'tg_user'):
+                            try:
+                                telegram_id = booking.tg_user.telegram_id
+                            except:
+                                telegram_id = 0
+                        
+                        # Создаем объект бронирования
+                        booking_info = BookingInfoSchema(
+                            booking_id=str(booking.id),
+                            guest_name=booking.guest_name,
+                            guest_phone=booking.guest_phone,
+                            num_guests=booking.num_guests,
+                            booking_date=booking.booking_date.isoformat(),
+                            booking_time=booking.booking_time.isoformat(),
+                            duration_minutes=booking.duration_minutes,
+                            notes=booking.notes,
+                            telegram_id=telegram_id,
+                            is_cancelled=booking.is_cancelled,
+                            created_at=booking.created_at.isoformat()
+                        )
+                        
+                        # Определяем, текущее это бронирование или будущее
+                        booking_datetime = datetime.combine(booking.booking_date, booking.booking_time)
+                        booking_end = booking_datetime + timedelta(minutes=booking.duration_minutes)
+                        
+                        # Текущее бронирование - если оно сейчас активно
+                        if booking_datetime <= now <= booking_end:
+                            current_booking = booking_info
+                        # Будущее бронирование
+                        elif booking_datetime > now:
+                            upcoming_bookings.append(booking_info)
+        except Exception:
+            # Если произошла ошибка при доступе к бронированиям, просто пропускаем
+            # Это может произойти, если связь не была prefetched
+            pass
+        
         return cls(
             id=str(table.id),
             table_number=table.table_number,
@@ -53,6 +132,8 @@ class TableResponseSchema(BaseModel):
             created_at=table.created_at.isoformat(),
             updated_at=table.updated_at.isoformat(),
             floor=table.floor,  # Добавляем этаж
+            current_booking=current_booking,
+            upcoming_bookings=upcoming_bookings
         )
 
 

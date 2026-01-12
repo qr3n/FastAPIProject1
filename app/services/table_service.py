@@ -39,6 +39,8 @@ class TableService:
             table_number=table_data.table_number,
             capacity=table_data.capacity
         )
+        # Prefetch bookings for consistent response (will be empty for new table)
+        await table.fetch_related('table_bookings__tg_user')
         return table
 
     @staticmethod
@@ -50,7 +52,7 @@ class TableService:
         if not business:
             raise BusinessNotFoundError(f"Business {business_id} not found")
 
-        tables = await Table.filter(business_id=business_id, is_active=True)
+        tables = await Table.filter(business_id=business_id, is_active=True).prefetch_related('table_bookings__tg_user')
         return tables
 
     @staticmethod
@@ -58,7 +60,7 @@ class TableService:
         """Get table by ID with access verification."""
         from shared.models.business import Business
 
-        table = await Table.get_or_none(id=table_id).prefetch_related("business")
+        table = await Table.get_or_none(id=table_id).prefetch_related("business", "table_bookings__tg_user")
         if not table:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
@@ -80,6 +82,7 @@ class TableService:
             setattr(table, field, value)
 
         await table.save()
+        # Bookings are already prefetched by get_table()
         return table
 
     @staticmethod
@@ -179,17 +182,14 @@ class TableService:
 
 
     @staticmethod
-    async def cancel_booking(booking_id: str, current_user: User) -> TableBooking:
-        """Cancel a booking."""
-        booking = await TableBooking.get_or_none(id=booking_id).prefetch_related("table__business")
+    async def cancel_booking(booking_id: str) -> TableBooking:
+        """Cancel a booking (public method - no authentication required)."""
+        booking = await TableBooking.get_or_none(id=booking_id).prefetch_related("table")
         if not booking:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="Booking not found"
             )
-
-        if booking.table.business.owner_id != current_user.id:
-            raise BusinessAccessDeniedError("You don't have access to this booking")
 
         if booking.is_cancelled:
             raise HTTPException(
@@ -335,11 +335,11 @@ class TableService:
                     await table.save()
                     updated_count += 1
 
-        # Get final state of tables
+        # Get final state of tables with bookings prefetched
         final_tables = await Table.filter(
             business_id=business_id,
             is_active=True
-        ).order_by('table_number')
+        ).order_by('table_number').prefetch_related('table_bookings__tg_user')
 
         return {
             'created': created_count,

@@ -86,13 +86,13 @@ class NotificationService:
 
         # Создаём сокет через SOCKS5 прокси
         sock = socks.socksocket()
-        sock.set_proxy(
-            proxy_type=socks.SOCKS5,
-            addr=NotificationService.PROXY_HOST,
-            port=NotificationService.PROXY_PORT,
-            username=NotificationService.PROXY_USER,
-            password=NotificationService.PROXY_PASS
-        )
+        # sock.set_proxy(
+        #     proxy_type=socks.SOCKS5,
+        #     addr=NotificationService.PROXY_HOST,
+        #     port=NotificationService.PROXY_PORT,
+        #     username=NotificationService.PROXY_USER,
+        #     password=NotificationService.PROXY_PASS
+        # )
         sock.settimeout(30)
         sock.connect(('smtp.gmail.com', 587))
 

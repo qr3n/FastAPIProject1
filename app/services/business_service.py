@@ -66,24 +66,24 @@ class BusinessService:
             logger.info(f"✅ Bot registered for business '{business.name}' (@{bot_info.get('username')})")
         else:
             logger.error(f"❌ Failed to register webhook for business '{business.name}'")
-            # Можно решить, откатывать ли создание бизнеса или продолжить
-            # Вариант 1: откатить
-            # await business.delete()
-            # raise Exception("Failed to register bot webhook")
-
-            # Вариант 2: продолжить, но пометить как неактивного
             await business.update_from_dict({"is_active": False}).save()
             logger.warning(f"Business created but bot is inactive due to webhook registration failure")
 
         return business
 
     @staticmethod
-    async def get_business_by_id(business_id: str) -> Business:
+    async def get_business_by_id(
+            business_id: str,
+            include_tables: bool = False,
+            include_dishes: bool = False
+    ) -> Business:
         """
         Get business by ID.
 
         Args:
             business_id: Business UUID
+            include_tables: Prefetch tables data
+            include_dishes: Prefetch dishes data
 
         Returns:
             Business instance
@@ -91,7 +91,15 @@ class BusinessService:
         Raises:
             BusinessNotFoundError: If business doesn't exist
         """
-        business = await Business.get_or_none(id=business_id)
+        query = Business.filter(id=business_id)
+
+        # Prefetch related data if requested
+        if include_tables:
+            query = query.prefetch_related('tables')
+        if include_dishes:
+            query = query.prefetch_related('dishes')
+
+        business = await query.first()
 
         if not business:
             raise BusinessNotFoundError(business_id)
@@ -99,17 +107,31 @@ class BusinessService:
         return business
 
     @staticmethod
-    async def get_user_businesses(user: User) -> List[Business]:
+    async def get_user_businesses(
+            user: User,
+            include_tables: bool = False,
+            include_dishes: bool = False
+    ) -> List[Business]:
         """
         Get all businesses owned by user.
 
         Args:
             user: User instance
+            include_tables: Prefetch tables data
+            include_dishes: Prefetch dishes data
 
         Returns:
             List of user's businesses
         """
-        return await Business.filter(owner=user).all()
+        query = Business.filter(owner=user)
+
+        # Prefetch related data if requested
+        if include_tables:
+            query = query.prefetch_related('tables')
+        if include_dishes:
+            query = query.prefetch_related('dishes')
+
+        return await query.all()
 
     @staticmethod
     async def update_business(
@@ -139,42 +161,12 @@ class BusinessService:
             raise BusinessAccessDeniedError()
 
         update_fields = {}
-        old_token = business.telegram_bot_token
 
         if business_data.name is not None:
             update_fields['name'] = business_data.name
 
         if business_data.description is not None:
             update_fields['description'] = business_data.description
-
-        if business_data.business_type is not None:
-            update_fields['business_type'] = business_data.business_type
-
-        # Обновление токена бота
-        if business_data.telegram_bot_token is not None:
-            new_token = business_data.telegram_bot_token
-
-            # Проверяем новый токен
-            bot_info = await bot_manager.verify_bot_token(new_token)
-            if not bot_info:
-                raise InvalidTelegramTokenError("Invalid Telegram bot token")
-
-            logger.info(f"Updating bot token for business '{business.name}'")
-            logger.info(f"New bot: @{bot_info.get('username')}")
-
-            # Обновляем токен
-            success = await bot_manager.update_bot_token(
-                old_token=old_token,
-                new_token=new_token,
-                business_id=str(business.id)
-            )
-
-            if success:
-                update_fields['telegram_bot_token'] = new_token
-                logger.info(f"✅ Bot token updated successfully")
-            else:
-                logger.error(f"❌ Failed to update bot token")
-                raise Exception("Failed to update bot webhook")
 
         # Управление активностью бота
         if business_data.is_active is not None:
@@ -276,4 +268,51 @@ class BusinessService:
             "is_active": business.is_active,
             "bot_info": bot_info,
             "bot_username": bot_info.get("username") if bot_info else None
+        }
+
+    @staticmethod
+    async def get_business_stats(business_id: str, user: User) -> dict:
+        """
+        Get business statistics including tables and dishes info.
+
+        Args:
+            business_id: Business UUID
+            user: User making the request
+
+        Returns:
+            Dict with business statistics
+        """
+        from shared.models.table import Table, TableStatus
+        from shared.models.dish import Dish
+
+        business = await BusinessService.get_business_by_id(business_id)
+
+        if business.owner_id != user.id:
+            raise BusinessAccessDeniedError()
+
+        # Статистика столиков
+        total_tables = await Table.filter(business=business).count()
+        active_tables = await Table.filter(business=business, is_active=True).count()
+        available_tables = await Table.filter(
+            business=business,
+            status=TableStatus.AVAILABLE,
+            is_active=True
+        ).count()
+
+        # Статистика блюд
+        total_dishes = await Dish.filter(business=business).count()
+        available_dishes = await Dish.filter(business=business, is_available=True).count()
+
+        return {
+            "business_id": str(business.id),
+            "business_name": business.name,
+            "tables": {
+                "total": total_tables,
+                "active": active_tables,
+                "available": available_tables
+            },
+            "dishes": {
+                "total": total_dishes,
+                "available": available_dishes
+            }
         }

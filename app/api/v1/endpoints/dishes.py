@@ -23,21 +23,12 @@ from app.exceptions.business_exceptions import (
 router = APIRouter(prefix="/dishes", tags=["dishes"])
 
 
-@router.get("", response_model=List[DishResponseSchema])
+@router.get("", response_model=List[DishResponseSchema], operation_id="getDishes")
 async def get_dishes(
         request: Request,
         business_id: Optional[str] = Query(None, description="Filter by business ID")
 ) -> List[DishResponseSchema]:
-    """
-    Retrieve all dishes, optionally filtered by business.
-
-    Args:
-        request: FastAPI request object
-        business_id: Optional business UUID to filter by
-
-    Returns:
-        List of dishes
-    """
+    """Retrieve all dishes, optionally filtered by business."""
     dishes = await DishService.get_all_dishes(business_id)
     base_url = str(request.base_url).rstrip('/')
 
@@ -47,25 +38,12 @@ async def get_dishes(
     ]
 
 
-@router.post("/search", response_model=List[DishResponseSchema])
+@router.post("/search", response_model=List[DishResponseSchema], operation_id="searchDishes")
 async def search_dishes(
         request: Request,
         search_params: DishSearchSchema
 ) -> List[DishResponseSchema]:
-    """
-    Search dishes by keywords and filters.
-
-    Designed for AI agent tool calls.
-
-    Request body example:
-    {
-        "query": ["курица", "томаты"],
-        "category": ["main", "appetizer"],
-        "cuisine": ["italian"],
-        "price_max": 500.0,
-        "business_id": "uuid-here"
-    }
-    """
+    """Search dishes by keywords and filters. Designed for AI agent tool calls."""
     dishes = await DishService.search_dishes(
         keywords=search_params.query,
         business_id=search_params.business_id,
@@ -82,21 +60,10 @@ async def search_dishes(
         for dish in dishes
     ]
 
-@router.get("/{dish_id}", response_model=DishResponseSchema)
+
+@router.get("/{dish_id}", response_model=DishResponseSchema, operation_id="getDish")
 async def get_dish(dish_id: str, request: Request) -> DishResponseSchema:
-    """
-    Retrieve a single dish by ID.
-
-    Args:
-        dish_id: UUID of the dish
-        request: FastAPI request object
-
-    Returns:
-        Dish data
-
-    Raises:
-        HTTPException: 404 if dish not found
-    """
+    """Retrieve a single dish by ID."""
     try:
         dish = await DishService.get_dish_by_id(dish_id)
         base_url = str(request.base_url).rstrip('/')
@@ -108,30 +75,13 @@ async def get_dish(dish_id: str, request: Request) -> DishResponseSchema:
         )
 
 
-@router.post(
-    "",
-    response_model=DishResponseSchema,
-    status_code=status.HTTP_201_CREATED
-)
+@router.post("", response_model=DishResponseSchema, status_code=status.HTTP_201_CREATED, operation_id="createDish")
 async def create_dish(
         dish_data: DishCreateSchema,
         request: Request,
         current_user: User = Depends(get_current_user)
 ) -> DishResponseSchema:
-    """
-    Create a new dish.
-
-    Args:
-        dish_data: Dish creation data including base64 image
-        request: FastAPI request object
-        current_user: Current authenticated user
-
-    Returns:
-        Created dish data
-
-    Raises:
-        HTTPException: 400 if image is invalid, 403 if access denied, 404 if business not found
-    """
+    """Create a new dish."""
     try:
         dish = await DishService.create_dish(dish_data, current_user)
         base_url = str(request.base_url).rstrip('/')
@@ -153,28 +103,14 @@ async def create_dish(
         )
 
 
-@router.put("/{dish_id}", response_model=DishResponseSchema)
+@router.put("/{dish_id}", response_model=DishResponseSchema, operation_id="updateDish")
 async def update_dish(
         dish_id: str,
         dish_data: DishUpdateSchema,
         request: Request,
         current_user: User = Depends(get_current_user)
 ) -> DishResponseSchema:
-    """
-    Update an existing dish.
-
-    Args:
-        dish_id: UUID of the dish to update
-        dish_data: Updated dish data
-        request: FastAPI request object
-        current_user: Current authenticated user
-
-    Returns:
-        Updated dish data
-
-    Raises:
-        HTTPException: 404 if dish not found, 403 if access denied, 400 if image is invalid
-    """
+    """Update an existing dish."""
     try:
         dish = await DishService.update_dish(dish_id, dish_data, current_user)
         base_url = str(request.base_url).rstrip('/')
@@ -194,23 +130,14 @@ async def update_dish(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=str(e)
         )
+    
 
-
-@router.delete("/{dish_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete("/{dish_id}", status_code=status.HTTP_204_NO_CONTENT, operation_id="deleteDish")
 async def delete_dish(
         dish_id: str,
         current_user: User = Depends(get_current_user)
 ) -> None:
-    """
-    Delete a dish.
-
-    Args:
-        dish_id: UUID of the dish to delete
-        current_user: Current authenticated user
-
-    Raises:
-        HTTPException: 404 if dish not found, 403 if access denied
-    """
+    """Delete a dish."""
     try:
         await DishService.delete_dish(dish_id, current_user)
     except DishNotFoundError as e:

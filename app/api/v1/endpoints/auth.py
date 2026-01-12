@@ -24,13 +24,7 @@ router = APIRouter(prefix="/auth", tags=["authentication"])
 
 
 def set_session_cookie(response: Response, session_token: str) -> None:
-    """
-    Set session cookie in response.
-
-    Args:
-        response: FastAPI response object
-        session_token: Session token to set
-    """
+    """Set session cookie in response."""
     response.set_cookie(
         key=settings.SESSION_COOKIE_NAME,
         value=session_token,
@@ -43,32 +37,16 @@ def set_session_cookie(response: Response, session_token: str) -> None:
 
 
 def clear_session_cookie(response: Response) -> None:
-    """
-    Clear session cookie from response.
-
-    Args:
-        response: FastAPI response object
-    """
+    """Clear session cookie from response."""
     response.delete_cookie(
         key=settings.SESSION_COOKIE_NAME,
         domain=settings.SESSION_COOKIE_DOMAIN
     )
 
 
-@router.post("/send-code", status_code=status.HTTP_200_OK)
+@router.post("/send-code", status_code=status.HTTP_200_OK, operation_id="sendCode")
 async def send_code(data: SendCodeSchema) -> dict:
-    """
-    Send verification code to email or phone.
-
-    Args:
-        data: Contact information (email or phone)
-
-    Returns:
-        Success message
-
-    Raises:
-        HTTPException: 429 if rate limit exceeded
-    """
+    """Send verification code to email or phone."""
     try:
         return await AuthService.send_verification_code(data)
     except RateLimitError as e:
@@ -78,26 +56,13 @@ async def send_code(data: SendCodeSchema) -> dict:
         )
 
 
-@router.post("/verify-code", response_model=UserResponseSchema)
+@router.post("/verify-code", response_model=UserResponseSchema, operation_id="verifyCode")
 async def verify_code(
     data: VerifyCodeSchema,
     request: Request,
     response: Response
 ) -> UserResponseSchema:
-    """
-    Verify code and login. Creates user if doesn't exist.
-
-    Args:
-        data: Verification code data
-        request: FastAPI request object
-        response: FastAPI response object
-
-    Returns:
-        User data
-
-    Raises:
-        HTTPException: 400 if code is invalid/expired/used, 429 if too many attempts
-    """
+    """Verify code and login. Creates user if doesn't exist."""
     try:
         session_token, _, user = await AuthService.verify_code_and_login(data, request)
         set_session_cookie(response, session_token)
@@ -118,70 +83,39 @@ async def verify_code(
         )
 
 
-@router.post("/logout", status_code=status.HTTP_204_NO_CONTENT)
+@router.post("/logout", status_code=status.HTTP_204_NO_CONTENT, operation_id="logout")
 async def logout(
     response: Response,
     session_token: str = Depends(get_session_token)
 ) -> None:
-    """
-    Logout user by invalidating session.
-
-    Args:
-        response: FastAPI response object
-        session_token: Session token from cookie
-    """
+    """Logout user by invalidating session."""
     await AuthService.logout(session_token)
     clear_session_cookie(response)
 
 
-@router.get("/me", response_model=UserResponseSchema)
+@router.get("/me", response_model=UserResponseSchema, operation_id="getCurrentUser")
 async def get_current_user_info(
     current_user: User = Depends(get_current_user)
 ) -> UserResponseSchema:
-    """
-    Get current user information.
-
-    Args:
-        current_user: Current authenticated user
-
-    Returns:
-        User data
-    """
+    """Get current user information."""
     return UserResponseSchema.from_orm_user(current_user)
 
 
-@router.get("/sessions", response_model=List[SessionInfoSchema])
+@router.get("/sessions", response_model=List[SessionInfoSchema], operation_id="getUserSessions")
 async def get_user_sessions(
     current_user: User = Depends(get_current_user)
 ) -> List[SessionInfoSchema]:
-    """
-    Get all active sessions for current user.
-
-    Args:
-        current_user: Current authenticated user
-
-    Returns:
-        List of user sessions
-    """
+    """Get all active sessions for current user."""
     sessions = await current_user.sessions.all()
     return [SessionInfoSchema.from_orm_session(session) for session in sessions]
 
 
-@router.delete("/sessions/{sid}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete("/sessions/{sid}", status_code=status.HTTP_204_NO_CONTENT, operation_id="deleteSession")
 async def delete_session(
     sid: str,
     current_user: User = Depends(get_current_user)
 ) -> None:
-    """
-    Delete a specific session.
-
-    Args:
-        sid: Session UUID to delete
-        current_user: Current authenticated user
-
-    Raises:
-        HTTPException: 404 if session not found or doesn't belong to user
-    """
+    """Delete a specific session."""
     from shared.models.user import Session
 
     session = await Session.get_or_none(id=sid, user=current_user)
