@@ -3,6 +3,7 @@ from aiohttp import web
 from shared.models.tg_user import TGUser
 import logging
 import os
+import json  # Добавьте этот импорт!
 
 logger = logging.getLogger(__name__)
 
@@ -17,10 +18,7 @@ async def ai_callback_handler(request: web.Request) -> web.Response:
     {
         "thread_id": "thread_123456789_1234567890",
         "business_id": "uuid-of-business",
-        "message": {
-            "result_text": "Ответ от AI ассистента",
-            "image_url": "https://example.com/image.jpg" (optional)
-        },
+        "message": "{\"result_text\": \"...\", \"image_url\": \"...\"}",
         "secret": "your-secret-key"
     }
     """
@@ -39,8 +37,16 @@ async def ai_callback_handler(request: web.Request) -> web.Response:
         if not thread_id or not message or not business_id:
             return web.Response(status=400, text="Missing required fields")
 
+        # 🔧 ИСПРАВЛЕНИЕ: Парсим message, если это строка
+        if isinstance(message, str):
+            try:
+                message = json.loads(message)
+            except json.JSONDecodeError as e:
+                logger.error(f"Invalid JSON in message field: {e}")
+                return web.Response(status=400, text="Invalid message JSON")
+
         message_text = message.get('result_text')
-        image_url = message.get('url')
+        image_url = message.get('url')  # или 'image_url', в зависимости от вашего формата
 
         if not message_text:
             return web.Response(status=400, text="Missing result_text")
@@ -64,7 +70,6 @@ async def ai_callback_handler(request: web.Request) -> web.Response:
 
         # Отправляем сообщение пользователю
         if image_url and image_url.strip():
-            # Если есть картинка - отправляем фото с подписью
             try:
                 await bot.send_photo(
                     chat_id=user.telegram_id,
@@ -75,7 +80,6 @@ async def ai_callback_handler(request: web.Request) -> web.Response:
                 logger.info(f"✅ AI response with image delivered to user {user.telegram_id}")
             except Exception as img_error:
                 logger.error(f"Error sending image: {img_error}", exc_info=True)
-                # Если не удалось отправить картинку, отправляем только текст
                 await bot.send_message(
                     chat_id=user.telegram_id,
                     text=message_text,
@@ -83,7 +87,6 @@ async def ai_callback_handler(request: web.Request) -> web.Response:
                 )
                 logger.info(f"✅ AI response (text only) delivered to user {user.telegram_id}")
         else:
-            # Если картинки нет - отправляем только текст
             await bot.send_message(
                 chat_id=user.telegram_id,
                 text=message_text,
@@ -91,9 +94,7 @@ async def ai_callback_handler(request: web.Request) -> web.Response:
             )
             logger.info(f"✅ AI response delivered to user {user.telegram_id}")
 
-        logger.info(
-            f"Message delivered via business {business_id}"
-        )
+        logger.info(f"Message delivered via business {business_id}")
 
         return web.json_response({"status": "ok"})
 
