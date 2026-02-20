@@ -47,6 +47,18 @@ class DishInfoSchema(BaseModel):
     tags: List[str]
 
 
+class MediaInfoSchema(BaseModel):
+    """Schema for media information."""
+
+    id: str
+    media_type: str
+    title: Optional[str]
+    description: Optional[str]
+    image_url: str
+    sort_order: int
+    is_active: bool
+
+
 class BusinessResponseSchema(BaseModel):
     """Schema for business responses."""
 
@@ -62,8 +74,10 @@ class BusinessResponseSchema(BaseModel):
     # Дополнительная информация
     tables_count: Optional[int] = None
     dishes_count: Optional[int] = None
+    media_count: Optional[int] = None
     tables: Optional[List[TableInfoSchema]] = None
     dishes: Optional[List[DishInfoSchema]] = None
+    media: Optional[List[MediaInfoSchema]] = None
 
     model_config = {"from_attributes": True}
 
@@ -72,7 +86,9 @@ class BusinessResponseSchema(BaseModel):
             cls,
             business: 'Business',
             include_tables: bool = False,
-            include_dishes: bool = False
+            include_dishes: bool = False,
+            include_media: bool = False,
+            base_url: str = ""
     ) -> 'BusinessResponseSchema':
         """
         Create response schema from ORM model.
@@ -81,12 +97,15 @@ class BusinessResponseSchema(BaseModel):
             business: Business ORM model
             include_tables: Include full tables list
             include_dishes: Include full dishes list
+            include_media: Include full media list
+            base_url: Base URL for serving images
 
         Returns:
             BusinessResponseSchema instance
         """
         from shared.models.table import Table
         from shared.models.dish import Dish
+        from shared.models.business_media import BusinessMedia
 
         # Базовые данные
         data = {
@@ -107,6 +126,10 @@ class BusinessResponseSchema(BaseModel):
         # Подсчет блюд
         dishes_count = await Dish.filter(business=business).count()
         data["dishes_count"] = dishes_count
+
+        # Подсчет медиа
+        media_count = await BusinessMedia.filter(business=business).count()
+        data["media_count"] = media_count
 
         # Полный список столиков (если запрошено)
         if include_tables:
@@ -138,6 +161,22 @@ class BusinessResponseSchema(BaseModel):
                     tags=dish.tags if dish.tags else []
                 )
                 for dish in dishes
+            ]
+
+        # Полный список медиа (если запрошено)
+        if include_media:
+            media_items = await BusinessMedia.filter(business=business).order_by("sort_order", "-created_at").all()
+            data["media"] = [
+                MediaInfoSchema(
+                    id=str(media.id),
+                    media_type=media.media_type.value,
+                    title=media.title,
+                    description=media.description,
+                    image_url=f"{base_url}/uploads/{media.image_path}" if base_url else media.image_path,
+                    sort_order=media.sort_order,
+                    is_active=media.is_active
+                )
+                for media in media_items
             ]
 
         return cls(**data)

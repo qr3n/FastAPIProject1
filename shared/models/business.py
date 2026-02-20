@@ -28,6 +28,7 @@ class Business(Model):
     updated_at = fields.DatetimeField(auto_now=True)
 
     dishes: fields.ReverseRelation["Dish"]
+    media: fields.ReverseRelation["BusinessMedia"]
 
     class Meta:
         table = "businesses"

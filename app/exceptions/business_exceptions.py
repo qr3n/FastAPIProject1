@@ -24,3 +24,11 @@ class InvalidTelegramTokenError(BusinessException):
 
     def __init__(self, message: str = "Invalid Telegram bot token"):
         super().__init__(message)
+
+
+class BusinessMediaNotFoundError(BusinessException):
+    """Raised when business media is not found."""
+
+    def __init__(self, media_id: str):
+        self.media_id = media_id
+        super().__init__(f"Business media with id {media_id} not found")

@@ -1,5 +1,5 @@
 # app/api/routes/business.py
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, Query, Request
 from typing import List
 
 from app.api.v1.dependencies.auth import get_current_user
@@ -17,27 +17,32 @@ router = APIRouter(prefix="/businesses", tags=["businesses"])
 @router.post("/", response_model=BusinessResponseSchema, status_code=201)
 async def create_business(
         business_data: BusinessCreateSchema,
+        request: Request,
         current_user: User = Depends(get_current_user)
 ):
     """
     Create a new business with Telegram bot integration.
     """
     business = await BusinessService.create_business(business_data, current_user)
-    return await BusinessResponseSchema.from_orm_business(business)
+    base_url = str(request.base_url).rstrip('/')
+    return await BusinessResponseSchema.from_orm_business(business, base_url=base_url)
 
 
 @router.get("/", response_model=List[BusinessResponseSchema])
 async def get_user_businesses(
+        request: Request,
         include_tables: bool = Query(False, description="Include tables list"),
         include_dishes: bool = Query(False, description="Include dishes list"),
+        include_media: bool = Query(False, description="Include media list"),
         current_user: User = Depends(get_current_user)
 ):
-    """d
+    """
     Get all businesses owned by the current user.
 
     Query parameters:
     - include_tables: Include full list of tables for each business
     - include_dishes: Include full list of dishes for each business
+    - include_media: Include full list of media for each business
     """
     businesses = await BusinessService.get_user_businesses(
         current_user,
@@ -45,11 +50,14 @@ async def get_user_businesses(
         include_dishes=include_dishes
     )
 
+    base_url = str(request.base_url).rstrip('/')
     return [
         await BusinessResponseSchema.from_orm_business(
             business,
             include_tables=include_tables,
-            include_dishes=include_dishes
+            include_dishes=include_dishes,
+            include_media=include_media,
+            base_url=base_url
         )
         for business in businesses
     ]
@@ -58,8 +66,10 @@ async def get_user_businesses(
 @router.get("/{business_id}", response_model=BusinessResponseSchema)
 async def get_business(
         business_id: str,
+        request: Request,
         include_tables: bool = Query(False, description="Include tables list"),
         include_dishes: bool = Query(False, description="Include dishes list"),
+        include_media: bool = Query(False, description="Include media list"),
         current_user: User = Depends(get_current_user)
 ):
     """
@@ -68,6 +78,7 @@ async def get_business(
     Query parameters:
     - include_tables: Include full list of tables
     - include_dishes: Include full list of dishes
+    - include_media: Include full list of media
     """
     business = await BusinessService.get_business_by_id(
         business_id,
@@ -76,10 +87,13 @@ async def get_business(
     )
     BusinessService.verify_business_access(business, current_user)
 
+    base_url = str(request.base_url).rstrip('/')
     return await BusinessResponseSchema.from_orm_business(
         business,
         include_tables=include_tables,
-        include_dishes=include_dishes
+        include_dishes=include_dishes,
+        include_media=include_media,
+        base_url=base_url
     )
 
 
@@ -87,6 +101,7 @@ async def get_business(
 async def update_business(
         business_id: str,
         business_data: BusinessUpdateSchema,
+        request: Request,
         current_user: User = Depends(get_current_user)
 ):
     """
@@ -97,7 +112,8 @@ async def update_business(
         business_data,
         current_user
     )
-    return await BusinessResponseSchema.from_orm_business(business)
+    base_url = str(request.base_url).rstrip('/')
+    return await BusinessResponseSchema.from_orm_business(business, base_url=base_url)
 
 
 @router.delete("/{business_id}", status_code=204)
