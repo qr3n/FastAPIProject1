@@ -5,10 +5,11 @@ Fixed version with proper reload and duplicate handling.
 from aiogram import Bot, Dispatcher, Router
 from aiogram.client.default import DefaultBotProperties
 from aiogram.enums import ParseMode
-from shared.models.business import Business
+from shared.models.business import Business, BusinessType
 from middleware import BusinessContextMiddleware
 from handlers.menu import register_menu_handlers
 from handlers.ai_assistant import register_ai_handlers
+from handlers.barbershop import register_barbershop_handlers
 import redis.asyncio as redis
 import logging
 import json
@@ -92,9 +93,13 @@ class BotRegistry:
             # Создаем роутер для хендлеров
             router = Router()
 
-            # Register handlers в роутер
-            register_menu_handlers(router, str(business.id))
-            register_ai_handlers(router, str(business.id))
+            # Register handlers based on business type
+            if business.business_type == BusinessType.BARBERSHOP:
+                register_barbershop_handlers(router, str(business.id))
+            else:
+                # Default: restaurant / other types with menu + AI
+                register_menu_handlers(router, str(business.id))
+                register_ai_handlers(router, str(business.id), business_type=business.business_type)
 
             # Включаем роутер в диспетчер
             dp.include_router(router)
@@ -113,7 +118,8 @@ class BotRegistry:
                 3600,  # 1 hour TTL
                 json.dumps({
                     'business_id': str(business.id),
-                    'business_name': business.name
+                    'business_name': business.name,
+                    'business_type': business.business_type,
                 })
             )
 

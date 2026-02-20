@@ -38,7 +38,9 @@ class BotWorker:
                 "shared.models.business",
                 "shared.models.dish",
                 "shared.models.user",
-                "shared.models.tg_user"
+                "shared.models.tg_user",
+                "shared.models.table",
+                "shared.models.barber",
             ]}
         )
         await Tortoise.generate_schemas(safe=True)

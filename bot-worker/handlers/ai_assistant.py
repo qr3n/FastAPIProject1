@@ -11,11 +11,28 @@ import os
 
 logger = logging.getLogger(__name__)
 
-AI_ASSISTANT_URL = "https://hook.eu2.make.com/hnukd8a6uo6lghmhkl6pdyl30crsztnu"
+AI_ASSISTANT_URLS = {
+    "default": os.getenv(
+        "MAKE_WEBHOOK_URL",
+        "https://hook.eu2.make.com/hnukd8a6uo6lghmhkl6pdyl30crsztnu"
+    ),
+    "barbershop": os.getenv(
+        "MAKE_WEBHOOK_URL_BARBERSHOP",
+        ""
+    ),
+}
 
 
-def register_ai_handlers(router: Router, business_id: str):
+def _get_ai_url(business_type: str) -> str:
+    """Return the Make webhook URL for the given business type."""
+    url = AI_ASSISTANT_URLS.get(business_type) or AI_ASSISTANT_URLS["default"]
+    return url
+
+
+def register_ai_handlers(router: Router, business_id: str, business_type: str = "default"):
     """Register AI assistant handlers."""
+
+    ai_url = _get_ai_url(business_type)
 
     @router.message(F.text)
     async def handle_text_message(message: Message):
@@ -69,7 +86,7 @@ def register_ai_handlers(router: Router, business_id: str):
                     }
                 }
 
-                async with session.post(AI_ASSISTANT_URL, json=payload) as resp:
+                async with session.post(ai_url, json=payload) as resp:
                     if resp.status == 200:
                         logger.info(f"Message sent to AI assistant for user {user.telegram_id}")
                     else:

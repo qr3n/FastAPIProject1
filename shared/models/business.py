@@ -6,6 +6,7 @@ class BusinessType(str, Enum):
     """Enum for business types."""
 
     RESTAURANT = "restaurant"
+    BARBERSHOP = "barbershop"
     PARKING = "parking"
     RETAIL = "retail"
     SERVICE = "service"
@@ -29,6 +30,7 @@ class Business(Model):
 
     dishes: fields.ReverseRelation["Dish"]
     media: fields.ReverseRelation["BusinessMedia"]
+    barbers: fields.ReverseRelation["Barber"]
 
     class Meta:
         table = "businesses"

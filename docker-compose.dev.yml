@@ -120,6 +120,7 @@ services:
       - "8080:8080"
     volumes:
       - ./bot-worker:/app
+      - ./shared:/app/shared
       - backend_uploads:/app/uploads:ro
     depends_on:
       postgres:
